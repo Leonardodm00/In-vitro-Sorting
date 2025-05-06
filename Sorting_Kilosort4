@@ -1,0 +1,511 @@
+
+import os
+import numpy
+import numpy as np
+import matplotlib.pyplot as plt
+import h5py
+from tqdm import tqdm
+
+## SPIKE INTERFACE MOULE AND SUBMODULES
+import spikeinterface as si
+from pathlib import Path
+from pprint import pprint
+import spikeinterface
+import spikeinterface as si  # import core only
+import spikeinterface.extractors as se
+import spikeinterface.preprocessing as spre
+import spikeinterface.sorters as ss
+import spikeinterface.postprocessing as spost
+import spikeinterface.qualitymetrics as sqm
+import spikeinterface.comparison as sc
+import spikeinterface.exporters as sexp
+import spikeinterface.curation as scur
+import spikeinterface.widgets as sw
+import spikeinterface_gui
+
+## PROBE
+
+from probeinterface import Probe
+from probeinterface.plotting import plot_probe
+from probeinterface import write_prb, read_prb
+
+## KILOSORT
+
+from kilosort import io
+from kilosort import run_kilosort
+
+## PHY
+
+from phy.apps.template import template_gui
+
+#%%
+
+
+## THIS SCRIPT WORKS WELL WITH A1 WELL CHANNEL IDX. For electrodes belonging to other channels, during the extraction of the data in TS_
+## the channel idx must be mapped in [0 2303] range
+
+
+
+# variables
+fileDirectory = r'F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282'
+file_Path = r''
+fileName  = '\dndnnd.ds'
+Probe_path = r"C:\Users\leona\Desktop\Prova\CorePlate_1W_38_60.prb"
+wellID = 'Well_A1' 
+# ROIfile = r'ROI_A1.txt'
+# Ch_position_x = r'x_position.txt'
+# Ch_position_y = r'y_position.txt'
+
+dataStartPositionSec = 0
+dataDurationSec = 10 # 2 min of recordings
+n_channels = 2304
+
+
+# Path directory to save kilosort data
+DATA_DIRECTORY = Path('F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282\Prova Kilosort')  # NOTE: You should change this
+# Create path if it doesn't exist
+DATA_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+
+# Change the current working directory to a specific path
+os.chdir(r"F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282")
+
+
+
+
+'''
+If this extractor is not working use the former method
+
+'''
+
+recording = se.read_biocam(file_Path) # Maybe not working with multiplw wells
+
+
+
+# ## ROI
+# with open(ROIfile, 'r') as file:
+#     # Read the contents of the file
+#     ROIs = file.read()
+#     # Split the string into a list of numbers
+#     numb = ROIs.split('\n')
+    
+#     ROIs =  [int(x) for x in numb]
+        
+    
+#     # Convert the list to a NumPy array
+#     # ROIs = np.array(ROIs)
+#     # ROIs = ROIs.astype(int)
+
+    
+
+# open the BRW file
+file = h5py.File(fileDirectory + fileName, 'r')
+# collect experiment information
+samplingRate = file.attrs['SamplingRate']
+chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+
+# Create a new file where the chIdx are numerically renamed form 0 to the max
+# number of channels - 1. The two variables are mapped by the idx, whithin the arrays.
+
+ROIs = np.range(len(chIdxs))
+
+
+# #########################################
+
+# Calculate the numebr of frames per Channel that equals the number of segmentes to 
+# take along the data
+Number_frames_ch = int(dataDurationSec*samplingRate)
+
+# Variables for covertion from digital to analog
+
+minDigitalValue = file.attrs['MinDigitalValue']
+maxDigitalValue = file.attrs['MaxDigitalValue'] 
+minAnalogValue = file.attrs['MinAnalogValue'] 
+maxAnalogValue = file.attrs['MaxAnalogValue'] 
+
+ConversionFactor =(maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+OffsetValue = minAnalogValue - ConversionFactor * minDigitalValue 
+
+
+
+# load the Raw data
+data = file[wellID + '/Raw']
+
+
+# TS: channels of interest row-wise, time course column-wise.
+
+TS = np.zeros([Number_frames_ch,len(ROIs)])
+
+
+# Construct the mask to extract the channel-related data points
+  # For coherence when the original channel idx is retrieved 
+                    # w.r.t. the row
+
+
+
+for F in tqdm(range(Number_frames_ch-1)):
+    
+    # start = F*n_channels
+    # stop = (F+1)* n_channels
+    
+    sl_data = data[F*n_channels:(F+1)*n_channels]
+    data_channels = sl_data[ROIs]
+    
+    
+    
+    
+    
+    # Extracting channel-related indicies + convertion to analog
+    
+    TS[F,:] = OffsetValue + np.int16(data_channels)*ConversionFactor
+
+    
+   
+del data
+
+# #%%
+
+
+# t = np.arange(int(4.13*samplingRate))
+# plt.plot(t, Check_unit[0:int(4.13*samplingRate)],linewidth = 0.8)
+
+# plt.show()
+# #%%
+#### CONVERSION ON SPIKEINTERFACE READABLE FORMAT
+
+
+num_channels_ROI =  len(ROIs) 
+
+file_path = Path(fileDirectory +'\TS.bin')
+
+# Load data using SpikeInterface
+recording = se.NumpyRecording([TS.astype(np.float32)],sampling_frequency=samplingRate)
+print(f"Traces dtype: {recording.get_dtype()}")
+
+# Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
+# print(recording.get_num_frames(), recording.get_num_channels())
+print(recording.get_num_frames(), recording.get_num_channels())
+
+
+# Write down the recoding
+file_paths = ['TS' +  wellID  + '.raw']
+se.BinaryRecordingExtractor.write_recording(recording, file_paths)
+
+#%%
+'''
+
+Load the probe file and extract the useful info. Specifically for x_centers option in Kilosort4
+
+'''
+with open(Probe_path, 'r') as file:
+    # Read from the 'file' object within this block
+    Probe_MEA = file
+
+
+df_MEA = Probe_MEA.to_dataframe()
+
+# To get the maximum value of the 'x' column:
+max_y = df_MEA['x'].max()  # Expressed in um
+
+# To compute the right x_centers value we must devided the max value by the suggested inter-center
+# distance ( few hundred microsn:  200um
+
+x_Cent = int(max_y/200)
+
+
+
+
+
+#%
+# PLOT TRACES
+
+
+timeseries_plot = sw.plot_traces(recording,channel_ids =[11],time_range=(0,4.89),figsize=(8,10))
+
+plt.show()
+
+#########################
+'''
+
+Check till here wether the recording object is suitable for the subsequent analysis.
+
+'''
+#########################
+
+#%%
+print("kilosort4 params:")
+pprint(ss.get_default_sorter_params('kilosort4'))
+
+
+# Change parameters' value
+# Read https://github.com/MouseLand/Kilosort/blob/main/kilosort/parameters.py for exaustive explanation of the parameters
+# Read https://www.nature.com/articles/s41592-024-02232-7 for the explanatory article
+
+other_params = ss.get_default_sorter_params('kilosort4')
+#%%
+############# ORIGINAL
+other_params['batch_size'] =  int(10 * samplingRate)   
+other_params['binning_depth'] = 0
+
+
+# These adjust the vertical and lateral spacing, respectively, of the universal templates used during spike detection, 
+# as well as the vertical and lateral sizes of channel neighborhoods used for clustering. 
+# By default, Kilosort will attempt to determine a good value for dmin based on the median distance between contacts,
+# which tends to work well for Neuropixels-like probes. However, if contacts are irregularly spaced, you may need to specify this manually. 
+# The default for dminx is 32um, which is also well suited to Neuropixels probes. For other probes, try setting dminx to the median lateral distance between contacts as a starting point.
+
+# Good values, don't touch them
+other_params['dmin'] = 60 # None
+other_params['dminx'] = 60  # 32
+###########
+
+# This is the number of nearest channels and template locations, respectively, used when assigning templates to spikes during spike detection. 
+# nearest_chans cannot be larger than the total number of channels on the probe, so it will need to be reduced for probes with less than 10 channels.
+#  nearest_templates does not have this restriction. However, for probes with around 64 channels or less and sparsely spaced contacts,
+#  decreasing nearest_templates to be less than or equal to the number of channels helps avoid numerical instability.
+other_params['nearest_chans'] = 5   # 10
+other_params['nearest_templates'] =50 #100
+#############
+
+# The number of x-positions to use when determining centers for template groupings. Specifically, this is the number of centroids to look for when 
+# using k-means to cluster the x-positions for the probe. In most cases you should not need to specify this. However, for probes with contacts arranged in a 2D grid, 
+# we recommend setting x_centers such that centers are placed every 200-300um so that there are not too many templates in each group. For example, for an array that
+ # is 2000um in width, try x_centers = 10. If contacts are very densely spaced, you may need to use a higher value for better performance.
+other_params['x_centers'] =   x_Cent # None
+###########
+
+# Indicates whether spike shapes used in universal templates should be
+# estimated from the data or loaded from the predefined templates.
+other_params['templates_from_data'] = True
+###########
+ # Number of single-channel templates to use for the universal
+ # templates (only used if templates_from_data is True)
+
+
+other_params['n_templates'] = 6 # 6
+###########
+
+# Number of single-channel PCs to use for extracting spike features
+# (only used if templates_from_data is True).
+other_params['n_pcs'] = 6 # 6
+###########
+
+# Number of nearby channels used to estimate the whitening matrix.
+other_params['whitening_range'] = 32 # 32
+############
+
+# Inverse fraction of nodes used as landmarks during clustering
+# (can be 1, but that slows down the optimization). 
+other_params['cluster_downsampling'] = 20 # 20
+
+
+# Scalar shift to apply to data before all other operations. In most
+# cases this should be left as None, but may be necessary for float32
+# data for example. If needed, `shift` and `scale` should be set such
+# that data is roughly in the range -100 to +100.
+other_params['scale'] = ConversionFactor
+
+
+#Scaling factor to apply to data before all other operations. In most
+# cases this should be left as None, but may be necessary for float32
+# data for example. If needed, `shift` and `scale` should be set such
+# that data is roughly in the range -100 to +100.
+other_params['shift'] = OffsetValue
+
+# Templates farther away than this from their nearest channel will
+# not be used. Also limits distance between compared channels during
+# clustering.
+other_params['max_channel_distance'] = 32  #32  ### Critical 
+
+
+#  Standard deviation of the smallest, spatial envelope Gaussian used
+#  for universal templates.
+other_params['min_template_size'] = 25  # 25 um is the electrode witdh # 10
+
+
+# Number of sizes for universal spike templates (multiples of the
+# min_template_size).
+other_params['template_sizes'] = 3
+
+# Number of non-overlapping blocks for drift correction
+# (additional nblocks-1 blocks are created in the overlaps).
+other_params['nblocks'] = 0
+
+
+# Batch stride for computing whitening matrix.
+other_params['nskip'] = 25 # 25  
+
+
+# This is the number of time samples used to represent spike waveforms, as well as 
+# the amount of symmetric padding for filtering. The default represents 2ms + 1 bin
+# for a sampling rate of 30kHz. For a different sampling rate, you may want to adjust accordingly.
+# For example, nt = 81 would be the 2ms equivalent for 40kHz.
+nt_ms = 2.5  # [ms]
+nt_s = nt_ms / 1000  # [s]
+# nt_opt = int(nt_s * samplingRate) + 1
+other_params['nt'] = int(nt_s * samplingRate) + 1
+
+# Sample index for aligning waveforms, so that their minimum 
+# or maximum value happens here. Defaults to 
+# `int(20 * settings['nt']/61)`.
+nt_min_ms = 1 # [ms]
+nt_min_s = nt_min_ms / 1000  # [s]
+
+other_params['nt0min'] = int(nt_min_s * samplingRate)
+
+
+# These control the threshold for spike detection when applying the universal and learned templates,
+# respectively (loosely similar to Th(1) and Th(2) in previous versions). If few spikes are detected,
+# or if you see neurons disappearing and reappearing over time when viewing results in Phy, it may help to decrease Th_learned.
+# To detect more units overall, it may help to reduce Th_universal. Try reducing each threshold by 1 or 2 at a time.
+
+# Spike detection threshold for learned templates.
+# Th(2) in previous versions of Kilosort.
+
+other_params['Th_learned'] = 8 # 8
+
+# Spike detection threshold for universal templates.
+# Th(1) in previous versions of Kilosort.
+other_params['Th_universal'] = 7 # 9
+
+# For single channel threshold crossings to compute universal-
+# templates. In units of whitened data standard deviations. 
+# Whitened data have traces quite shrunk when compared with the raw ones, thus a low TH value
+# is reasonable
+other_params['Th_single_ch'] = 5
+
+
+
+# FIlter
+other_params['highpass_cutoff'] = 300 # 300
+
+
+other_params['save_preprocessed_copy'] = True
+other_params['skip_kilosort_preprocessing'] = False
+other_params['keep_good_only'] = True
+
+
+
+
+#%
+##################### CONTROLLL #################
+
+
+
+## Load data in the correct format
+recc = se.BinaryRecordingExtractor(file_paths="F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282\TS_A1.raw", sampling_frequency=samplingRate,dtype='float32',
+                                   num_channels=num_channels_ROI)
+print(recc)
+
+
+
+
+# timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
+# Check the extraction
+timeseries_plot = sw.plot_traces(recc,channel_ids =np.arange(1),time_range=(2,2.01))
+
+plt.show()
+#%
+
+# Attach a probe on the raw rec
+
+recc = recc.set_probe(probe_2d)
+# recc1 = recc.set_probe(probe_2d)
+print(recc)
+# print(recc1)
+print(Number_frames_ch)
+plot_probe(recc.get_probe())
+
+# Foundamental to show everything
+plt.show()
+#% Original
+
+sorting_ = ss.run_sorter(
+    sorter_name="kilosort4", recording=recc, output_folder="kilosort4_output", **other_params,remove_existing_folder = True,
+)
+print(sorting_)
+
+
+
+
+#%
+
+#%%
+###
+# Create analyszer
+
+analyzer = si.create_sorting_analyzer(sorting=sorting_, recording=recc, format='binary_folder', folder='analyzer_bvinary',overwrite=True)
+
+# core extensions
+analyzer.compute(["random_spikes", "waveforms", "templates", "noise_levels","unit_locations", "spike_locations", "template_metrics"])
+analyzer.compute('principal_components', n_components = 5, mode="by_channel_local")
+# more extensions
+analyzer.compute(['spike_amplitudes', 'correlograms', 'template_similarity', 'quality_metrics'],
+                         extension_params=dict(quality_metrics=dict(metric_names=['snr', 'isi_violation', 'presence_ratio']))
+                         )
+
+unit_ids = sorting_.unit_ids[:num_channels_ROI]
+#%%
+
+# PLOT SOME RESULTS
+sw.plot_all_amplitudes_distributions(analyzer, figsize=(10, 10))
+plt.show()
+
+# oN THE PROBE
+
+sw.plot_unit_locations(analyzer, figsize=(4, 8))
+
+plt.show()
+
+
+sw.plot_rasters(analyzer)
+plt.show()
+
+#%%
+
+
+sw.plot_quality_metrics(analyzer)
+plt.show()
+#%%
+#### QUALITY METRICS
+
+
+firing_rates = sqm.compute_firing_rates(analyzer)
+print(firing_rates)
+isi_violation_ratio, isi_violations_count = sqm.compute_isi_violations(analyzer)
+print(isi_violation_ratio)
+snrs = sqm.compute_snrs(analyzer)
+print(snrs)
+#%%
+#%%
+#######  AUTOMATIC CURATION ##########
+## First remove all the spikes which amplitude is n times below the noise level
+
+
+
+# Computes the noise level associated with each recording channel. recording must be the filtered one
+spost.compute_noise_levels()
+
+
+
+
+### LUSSAC MERGING
+
+
+## Eplanation of the Lussac method refer to: https://doi.org/10.1101/2022.02.08.479192;
+
+## API in SpikeInterface: https://spikeinterface.readthedocs.io/en/stable/api.html#spikeinterface.curation.get_potential_auto_merge
+
+## Parameter example in Lussac documentation: https://github.com/BarbourLab/lussac/blob/main/src/lussac/params_examples/params_cerebellar_cortex.json
+
+
+
+Sorting_MS5_merged = scur.get_potential_auto_merge(sorting_analyzer = analyzer, preset = 'similarity_correlograms',
+                                                   resolve_graph = False, min_spikes = int(200), min_snr =  float(3), 
+                                                   max_distance_um = float(40.0), corr_diff_thresh = float(0.16), 
+                                                   template_diff_thresh = float(0.5), contamination_thresh = float(0.35), 
+                                                   presence_distance_thresh = float(100), p_value = float(0.2), cc_thresh = float(0.1), 
+                                                   censored_period_ms = float(0.2), refractory_period_ms = float(1.0), 
+                                                   sigma_smooth_ms = float(0.6), adaptative_window_thresh = float(0.5), 
+                                                   censor_correlograms_ms = float(0.2), firing_contamination_balance = float(2.5))
+                                                   
