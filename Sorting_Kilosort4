@@ -243,8 +243,10 @@ pprint(ss.get_default_sorter_params('kilosort4'))
 
 other_params = ss.get_default_sorter_params('kilosort4')
 #%%
+
+
 ############# ORIGINAL
-other_params['batch_size'] =  int(10 * samplingRate)   
+other_params['batch_size'] =  int(2 * samplingRate)   
 other_params['binning_depth'] = 0
 
 
@@ -263,15 +265,15 @@ other_params['dminx'] = 60  # 32
 # nearest_chans cannot be larger than the total number of channels on the probe, so it will need to be reduced for probes with less than 10 channels.
 #  nearest_templates does not have this restriction. However, for probes with around 64 channels or less and sparsely spaced contacts,
 #  decreasing nearest_templates to be less than or equal to the number of channels helps avoid numerical instability.
-other_params['nearest_chans'] = 5   # 10
-other_params['nearest_templates'] =50 #100
+other_params['nearest_chans'] = 10   # 10
+other_params['nearest_templates'] =100 #100
 #############
 
 # The number of x-positions to use when determining centers for template groupings. Specifically, this is the number of centroids to look for when 
 # using k-means to cluster the x-positions for the probe. In most cases you should not need to specify this. However, for probes with contacts arranged in a 2D grid, 
 # we recommend setting x_centers such that centers are placed every 200-300um so that there are not too many templates in each group. For example, for an array that
  # is 2000um in width, try x_centers = 10. If contacts are very densely spaced, you may need to use a higher value for better performance.
-other_params['x_centers'] =   x_Cent # None
+other_params['x_centers'] =   None #x_Cent # None
 ###########
 
 # Indicates whether spike shapes used in universal templates should be
@@ -329,7 +331,7 @@ other_params['template_sizes'] = 3
 
 # Number of non-overlapping blocks for drift correction
 # (additional nblocks-1 blocks are created in the overlaps).
-other_params['nblocks'] = 0
+other_params['nblocks'] = 0 # 1
 
 
 # Batch stride for computing whitening matrix.
@@ -366,13 +368,13 @@ other_params['Th_learned'] = 8 # 8
 
 # Spike detection threshold for universal templates.
 # Th(1) in previous versions of Kilosort.
-other_params['Th_universal'] = 7 # 9
+other_params['Th_universal'] = 9 # 9
 
 # For single channel threshold crossings to compute universal-
 # templates. In units of whitened data standard deviations. 
 # Whitened data have traces quite shrunk when compared with the raw ones, thus a low TH value
 # is reasonable
-other_params['Th_single_ch'] = 5
+other_params['Th_single_ch'] = 5 # 6
 
 
 
@@ -382,7 +384,7 @@ other_params['highpass_cutoff'] = 300 # 300
 
 other_params['save_preprocessed_copy'] = True
 other_params['skip_kilosort_preprocessing'] = False
-other_params['keep_good_only'] = True
+other_params['keep_good_only'] = False
 
 
 
