@@ -1,6 +1,5 @@
 
 import os
-import numpy
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
@@ -10,7 +9,7 @@ from tqdm import tqdm
 import spikeinterface as si
 from pathlib import Path
 from pprint import pprint
-import spikeinterface
+import math
 import spikeinterface as si  # import core only
 import spikeinterface.extractors as se
 import spikeinterface.preprocessing as spre
@@ -34,205 +33,251 @@ from probeinterface import write_prb, read_prb
 from kilosort import io
 from kilosort import run_kilosort
 
-## PHY
-
-from phy.apps.template import template_gui
-
-#%%
 
 
-## THIS SCRIPT WORKS WELL WITH A1 WELL CHANNEL IDX. For electrodes belonging to other channels, during the extraction of the data in TS_
-## the channel idx must be mapped in [0 2303] range
-
-
+def DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames):
+    # collect the TOCs
+    toc = np.array(file['TOC'])
+    eventsToc = np.array(file[wellID + '/EventsBasedSparseRawTOC'])
+    # from the given start position and duration in frames, localize the corresponding event positions
+    # using the TOC
+    tocStartIdx = np.searchsorted(toc[:, 1], startFrame)
+    tocEndIdx = min(np.searchsorted(toc[:, 1], startFrame + numFrames, side='right')
+     + 1, len(toc) - 1)
+    eventsStartPosition = eventsToc[tocStartIdx]
+    eventsEndPosition = eventsToc[tocEndIdx]
+    # decode all data for the given well ID and time interval
+    binaryData = file[wellID + '/EventsBasedSparseRaw'][eventsStartPosition:eventsEndPosition]
+    binaryDataLength = len(binaryData)
+    pos = 0
+    while pos < binaryDataLength:
+        chIdx = int.from_bytes(binaryData[pos:pos + 4], byteorder='little', signed=True)
+        pos += 4
+        chDataLength = int.from_bytes(binaryData[pos:pos + 4], byteorder='little', signed=True)
+        pos += 4
+        chDataPos = pos
+        while pos < chDataPos + chDataLength:
+            fromInclusive = int.from_bytes(binaryData[pos:pos + 8], byteorder='little', signed=True)
+            pos += 8
+            toExclusive = int.from_bytes(binaryData[pos:pos + 8], byteorder='little', signed=True)
+            pos += 8
+            rangeDataPos = pos
+            for j in range(fromInclusive, toExclusive):
+                if j >= startFrame + numFrames:
+                    break
+                if j >= startFrame:
+                    data[chIdx][j - startFrame] = int.from_bytes(
+                        binaryData[rangeDataPos:rangeDataPos + 2], byteorder='little', signed=True)
+                rangeDataPos += 2
+            pos += (toExclusive - fromInclusive) * 2
+            
+            
+            
+            
+            
+def GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames):
+# collect the TOCs
+    toc = np.array(file['TOC'])
+    noiseToc = np.array(file[wellID + '/NoiseTOC'])
+    # from the given start position in frames, localize the corresponding noise positions
+     # using the TOC
+    tocStartIdx = np.searchsorted(toc[:, 1], startFrame)
+    noiseStartPosition = noiseToc[tocStartIdx]
+    noiseEndPosition = noiseStartPosition
+    for i in range(tocStartIdx + 1, len(noiseToc)):
+        nextPosition = noiseToc[i]
+        if nextPosition > noiseStartPosition:
+            noiseEndPosition = nextPosition
+            break
+    if noiseEndPosition == noiseStartPosition:
+        for i in range(tocStartIdx - 1, 0, -1):
+            previousPosition = noiseToc[i]
+            if previousPosition < noiseStartPosition:
+                noiseEndPosition = noiseStartPosition
+                noiseStartPosition = previousPosition
+                break
+    # obtain the noise info at the start position
+    noiseChIdxs = file[wellID + '/NoiseChIdxs'][noiseStartPosition:noiseEndPosition]
+    noiseMean = file[wellID + '/NoiseMean'][noiseStartPosition:noiseEndPosition]
+    noiseStdDev = file[wellID + '/NoiseStdDev'][noiseStartPosition:noiseEndPosition]
+    noiseLength = noiseEndPosition - noiseStartPosition
+    noiseInfo = {}
+    meanCollection = []
+    stdDevCollection = []
+    for i in range(1, noiseLength):
+        noiseInfo[noiseChIdxs[i]] = [noiseMean[i], noiseStdDev[i]]
+        meanCollection.append(noiseMean[i])
+        stdDevCollection.append(noiseStdDev[i])
+    # calculate the median mean and standard deviation of all channels to be used for
+    # invalid channels
+    dataMean = np.median(meanCollection)
+    dataStdDev = np.median(stdDevCollection)
+# fill with Gaussian noise
+    for chIdx in data:
+        if chIdx in noiseInfo:
+            data[chIdx] = np.array(np.random.normal(noiseInfo[chIdx][0], noiseInfo[chIdx][1],
+                                                    numFrames), dtype=np.int16)
+        else:
+            data[chIdx] = np.array(np.random.normal(dataMean, dataStdDev, numFrames),
+                                   dtype=np.int16)
 
 # variables
-fileDirectory = r'F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282'
-file_Path = r''
-fileName  = '\dndnnd.ds'
+fileDirectory = r"C:\Users\Admin\Desktop\Leonardo\Prova LOW"   #put the path
+
+fileName  = r'\1481_DIV56_lowDens600_nbasal_001_00.brw' #filevname 
 Probe_path = r"C:\Users\leona\Desktop\Prova\CorePlate_1W_38_60.prb"
-wellID = 'Well_A1' 
-# ROIfile = r'ROI_A1.txt'
-# Ch_position_x = r'x_position.txt'
-# Ch_position_y = r'y_position.txt'
+wellID = 'Well_A1' #change well 
 
+
+useSyntheticNoise = True
 dataStartPositionSec = 0
-dataDurationSec = 10 # 2 min of recordings
-n_channels = 2304
+dataDurationSec = 5
+'''
+First 2 channels are used for calibration... Disregard them
 
 
-# Path directory to save kilosort data
-DATA_DIRECTORY = Path('F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282\Prova Kilosort')  # NOTE: You should change this
-# Create path if it doesn't exist
-DATA_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+'''
+
+'''
+Probe info
+
+'''
+
+# # CorePlate™ 1W 38/60
+# pitch = 60 # um   
+# Electrode_size = 21 # um
 
 
-# Change the current working directory to a specific path
-os.chdir(r"F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282")
+# # CorePlate™ 1W 27/42L
+# pitch = 42 # um   
+# Electrode_size = 21 # um
+
+
+# # CorePlate™ 1W 51/81
+# pitch = 81 # um   
+# Electrode_size = 21 # um
+
+# CorePlate™ 6W 38/60
+pitch = 60 # um   
+Electrode_size = 25 # um
+
 
 
 
 
 '''
-If this extractor is not working use the former method
+Extraction
 
 '''
 
-recording = se.read_biocam(file_Path) # Maybe not working with multiplw wells
+with h5py.File(file_path, 'r') as file:
 
-
-
-# ## ROI
-# with open(ROIfile, 'r') as file:
-#     # Read the contents of the file
-#     ROIs = file.read()
-#     # Split the string into a list of numbers
-#     numb = ROIs.split('\n')
+    # collect experiment information
     
-#     ROIs =  [int(x) for x in numb]
-        
+    samplingRate = file.attrs['SamplingRate']
+    chIdxs = np.array(file[wellID + '/StoredChIdxs'])
     
-#     # Convert the list to a NumPy array
-#     # ROIs = np.array(ROIs)
-#     # ROIs = ROIs.astype(int)
-
+    # convert the requested time interval from seconds to frames
+    startFrame = int(dataStartPositionSec * samplingRate)
+    numFrames = int(dataDurationSec * samplingRate)
     
-
-# open the BRW file
-file = h5py.File(fileDirectory + fileName, 'r')
-# collect experiment information
-samplingRate = file.attrs['SamplingRate']
-chIdxs = np.array(file[wellID + '/StoredChIdxs'])
-
-# Create a new file where the chIdx are numerically renamed form 0 to the max
-# number of channels - 1. The two variables are mapped by the idx, whithin the arrays.
-
-ROIs = np.range(len(chIdxs))
-
-
-# #########################################
-
-# Calculate the numebr of frames per Channel that equals the number of segmentes to 
-# take along the data
-Number_frames_ch = int(dataDurationSec*samplingRate)
-
-# Variables for covertion from digital to analog
-
-minDigitalValue = file.attrs['MinDigitalValue']
-maxDigitalValue = file.attrs['MaxDigitalValue'] 
-minAnalogValue = file.attrs['MinAnalogValue'] 
-maxAnalogValue = file.attrs['MaxAnalogValue'] 
-
-ConversionFactor =(maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
-OffsetValue = minAnalogValue - ConversionFactor * minDigitalValue 
-
-
-
-# load the Raw data
-data = file[wellID + '/Raw']
-
-
-# TS: channels of interest row-wise, time course column-wise.
-
-TS = np.zeros([Number_frames_ch,len(ROIs)])
-
-
-# Construct the mask to extract the channel-related data points
-  # For coherence when the original channel idx is retrieved 
-                    # w.r.t. the row
-
-
-
-for F in tqdm(range(Number_frames_ch-1)):
     
-    # start = F*n_channels
-    # stop = (F+1)* n_channels
+    # Variables for covertion from digital to analog
     
-    sl_data = data[F*n_channels:(F+1)*n_channels]
-    data_channels = sl_data[ROIs]
+    minDigitalValue = file.attrs['MinDigitalValue']
+    maxDigitalValue = file.attrs['MaxDigitalValue'] 
+    minAnalogValue = file.attrs['MinAnalogValue'] 
+    maxAnalogValue = file.attrs['MaxAnalogValue'] 
+    
+    ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+    OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
     
     
     
     
-    
-    # Extracting channel-related indicies + convertion to analog
-    
-    TS[F,:] = OffsetValue + np.int16(data_channels)*ConversionFactor
-
-    
-   
-del data
-
-# #%%
+    # initialize an empty (fill with zeros) data collection
+    data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
+    # fill the data collection with Gaussian noise if requested
+    if useSyntheticNoise:
+            GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
+    # fill the data collection with the decoded event based sparse raw data
+    DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
 
 
-# t = np.arange(int(4.13*samplingRate))
-# plt.plot(t, Check_unit[0:int(4.13*samplingRate)],linewidth = 0.8)
+data_matrix = np.array(list(data.values()), dtype=np.int16)
 
-# plt.show()
-# #%%
-#### CONVERSION ON SPIKEINTERFACE READABLE FORMAT
+'''
+Construct the RASTER matrix used in Spike interface.
 
+'''
 
-num_channels_ROI =  len(ROIs) 
+recording = se.NumpyRecording(data_matrix.T, samplingRate)
+si.write_binary_recording(recording, file_path.parent.joinpath("Data_matrix.bin"), dtype=np.int16)
 
-file_path = Path(fileDirectory +'\TS.bin')
-
-# Load data using SpikeInterface
-recording = se.NumpyRecording([TS.astype(np.float32)],sampling_frequency=samplingRate)
 print(f"Traces dtype: {recording.get_dtype()}")
 
 # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
 # print(recording.get_num_frames(), recording.get_num_channels())
 print(recording.get_num_frames(), recording.get_num_channels())
 
+# PLOT TRACES
+timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,23) ,time_range=(0,10),figsize=(8,10))
 
-# Write down the recoding
-file_paths = ['TS' +  wellID  + '.raw']
-se.BinaryRecordingExtractor.write_recording(recording, file_paths)
+plt.show()
 
 #%%
+
+
 '''
 
-Load the probe file and extract the useful info. Specifically for x_centers option in Kilosort4
+Define the probe
 
 '''
-with open(Probe_path, 'r') as file:
-    # Read from the 'file' object within this block
-    Probe_MEA = file
+# The electrodes are set in square geometry
+k =0
+n = int(math.sqrt(Number_electrodes))
+positions = np.zeros((Number_electrodes, 2))
+for i in range(n):
+    for j in range(n):
+        x = int(i * pitch)
+        y = int(j * pitch)
+        positions[k] = x, y
+        k =k+1
 
+# Generate the probe variable
 
-df_MEA = Probe_MEA.to_dataframe()
+probe_2d = Probe(ndim=2, si_units='um')
+probe_2d.set_contacts(positions=positions, shapes='square', shape_params={'width': Electrode_size})
+
+# Set channel indicies
+Ch_idx = np.arange(Number_electrodes)
+probe_2d.set_device_channel_indices(Ch_idx)
+
+# Plot the probe
+
+plot_probe(probe_2d)
+
 
 # To get the maximum value of the 'x' column:
-max_y = df_MEA['x'].max()  # Expressed in um
+max_x = max(positions[:,0])  # Expressed in um
 
 # To compute the right x_centers value we must devided the max value by the suggested inter-center
 # distance ( few hundred microsn:  200um
 
-x_Cent = int(max_y/200)
+x_Cent = int(max_x/200)
 
 
 
 
-
-#%
-# PLOT TRACES
-
-
-timeseries_plot = sw.plot_traces(recording,channel_ids =[11],time_range=(0,4.89),figsize=(8,10))
-
-plt.show()
-
-#########################
-'''
-
-Check till here wether the recording object is suitable for the subsequent analysis.
-
-'''
-#########################
 
 #%%
+
+'''
+Define the Kilosort options
+
+'''
+
 print("kilosort4 params:")
 pprint(ss.get_default_sorter_params('kilosort4'))
 
@@ -242,11 +287,9 @@ pprint(ss.get_default_sorter_params('kilosort4'))
 # Read https://www.nature.com/articles/s41592-024-02232-7 for the explanatory article
 
 other_params = ss.get_default_sorter_params('kilosort4')
-#%%
-
 
 ############# ORIGINAL
-other_params['batch_size'] =  int(2 * samplingRate)   
+other_params['batch_size'] =  int(3 * samplingRate)   
 other_params['binning_depth'] = 0
 
 
@@ -257,7 +300,7 @@ other_params['binning_depth'] = 0
 # The default for dminx is 32um, which is also well suited to Neuropixels probes. For other probes, try setting dminx to the median lateral distance between contacts as a starting point.
 
 # Good values, don't touch them
-other_params['dmin'] = 60 # None
+other_params['dmin'] = None # prev 60
 other_params['dminx'] = 60  # 32
 ###########
 
@@ -273,7 +316,7 @@ other_params['nearest_templates'] =100 #100
 # using k-means to cluster the x-positions for the probe. In most cases you should not need to specify this. However, for probes with contacts arranged in a 2D grid, 
 # we recommend setting x_centers such that centers are placed every 200-300um so that there are not too many templates in each group. For example, for an array that
  # is 2000um in width, try x_centers = 10. If contacts are very densely spaced, you may need to use a higher value for better performance.
-other_params['x_centers'] =   None #x_Cent # None
+other_params['x_centers'] =  x_Cent # None
 ###########
 
 # Indicates whether spike shapes used in universal templates should be
@@ -387,45 +430,46 @@ other_params['skip_kilosort_preprocessing'] = False
 other_params['keep_good_only'] = False
 
 
+#%%
+'''
+Load binary matrix
 
+'''
+# del TS
 
-#%
-##################### CONTROLLL #################
+Bin_recording = se.BinaryRecordingExtractor(file_paths=file_path.parent.joinpath("Data_matrix.bin"), 
+                                            sampling_frequency=samplingRate,dtype='int16',
+                                            num_channels=Number_electrodes)
 
+# Load the probe
+Bin_recording = Bin_recording.set_probe(probe_2d)
 
+'''
+Remove bad channels: the calibration ones
 
-## Load data in the correct format
-recc = se.BinaryRecordingExtractor(file_paths="F:\PhD\ASSEMBLOIDS\BATCH 27.01.23\DIV 63\MW_1282\TS_A1.raw", sampling_frequency=samplingRate,dtype='float32',
-                                   num_channels=num_channels_ROI)
-print(recc)
+'''
 
+Bin_recording = Bin_recording.remove_channels([0,1])
 
-
-
-# timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
-# Check the extraction
-timeseries_plot = sw.plot_traces(recc,channel_ids =np.arange(1),time_range=(2,2.01))
-
+# # timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
+# # Check the extraction
+print(Bin_recording)
+%matplotlib
+timeseries_plot = sw.plot_traces(Bin_recording,channel_ids =np.arange(50,70),time_range=(0,2))
 plt.show()
-#%
 
-# Attach a probe on the raw rec
 
-recc = recc.set_probe(probe_2d)
-# recc1 = recc.set_probe(probe_2d)
-print(recc)
-# print(recc1)
-print(Number_frames_ch)
-plot_probe(recc.get_probe())
 
-# Foundamental to show everything
-plt.show()
-#% Original
 
+
+#%%
 sorting_ = ss.run_sorter(
-    sorter_name="kilosort4", recording=recc, output_folder="kilosort4_output", **other_params,remove_existing_folder = True,
-)
+    sorter_name="kilosort4", recording=Bin_recording, output_folder="kilosort4_output", **other_params,remove_existing_folder = True)
 print(sorting_)
+
+
+
+
 
 
 
