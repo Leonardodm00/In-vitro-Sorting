@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May  9 17:37:31 2025
+
+@authors:leonardo.dellamea; francesco.mainardi
+"""
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +25,7 @@ import spikeinterface.comparison as sc
 import spikeinterface.exporters as sexp
 import spikeinterface.curation as scur
 import spikeinterface.widgets as sw
-import spikeinterface_gui
+
 
 ## PROBE
 
@@ -32,6 +38,8 @@ from probeinterface import ProbeGroup
 from kilosort import io
 from kilosort import run_kilosort
 
+
+#%%
 def create_directory(dir_path):
     """
     Creates a directory at the specified path.
@@ -542,7 +550,7 @@ MAIN_SETTINGS = {
             # """
  
 
-    'nblocks': 1,
+    'nblocks': 0,
     
             # """
             # Number of non-overlapping blocks for drift correction
@@ -688,7 +696,7 @@ MAIN_SETTINGS = {
             # """
   
 
-    'dminx': 32, # 60 prev ##############
+    'dminx': 60, # 32 prev ##############
     
         
             # """
@@ -863,6 +871,26 @@ ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes 
         device  = torch.device('cpu'),
         save_preprocessed_copy=True
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
