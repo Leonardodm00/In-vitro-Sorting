@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri May  9 17:37:31 2025
-
-@authors:leonardo.dellamea; francesco.mainardi
-"""
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,7 +19,7 @@ import spikeinterface.comparison as sc
 import spikeinterface.exporters as sexp
 import spikeinterface.curation as scur
 import spikeinterface.widgets as sw
-
+import scipy.io
 
 ## PROBE
 
@@ -37,9 +31,10 @@ from probeinterface import ProbeGroup
 
 from kilosort import io
 from kilosort import run_kilosort
+from kilosort.io import save_probe
+from kilosort.io import load_probe
 
-
-#%%
+#%
 def create_directory(dir_path):
     """
     Creates a directory at the specified path.
@@ -148,10 +143,10 @@ def GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames):
 
 # variables
 fileDirectory = r"C:\Users\Admin\Desktop\Leonardo\Prova LOW"   #put the path
-Probe_name = 'CorePlate_6W_38_60.prb'
+Probe_name = 'CorePlate_6W_38_60.json'
 fileName  = r'\1481_DIV56_lowDens600_nbasal_001_00.brw' #filevname 
-filepath = Path()
-Probe_path = r"C:\Users\Admin\Desktop\Leonardo\Prova LOW\CorePlate_6W_38_60.prb"
+
+Probe_path = r"C:\Users\Admin\Desktop\Leonardo\Prova LOW\CorePlate_6W_38_60.json"
 wellID = 'Well_A1' #change well 
 file_path= Path(str(fileDirectory + fileName))
 print(file_path)
@@ -257,6 +252,7 @@ plt.show()
 #%
 
 
+
 # '''
 
 # Define the probe
@@ -269,8 +265,8 @@ n = int(math.sqrt(Number_electrodes))
 positions = np.zeros((Number_electrodes, 2))
 for i in range(n):
     for j in range(n):
-        x = int(i * pitch)
-        y = int(j * pitch)
+        x = i * pitch
+        y = j * pitch
         positions[k] = x, y
         k =k+1
         
@@ -301,12 +297,51 @@ Save the probe
 
 '''
 
-# Multiple probes can be added to a ProbeGroup. We only have one, but a
-# ProbeGroup wrapper is still necessary for `write_prb` to work.
-pg = ProbeGroup()
-pg.add_probe(probe_2d)
-# CHANGE THIS PATH to wherever you want to save your probe file.
-write_prb('CorePlate_6W_38_60.prb', pg)
+# # Multiple probes can be added to a ProbeGroup. We only have one, but a
+# # ProbeGroup wrapper is still necessary for `write_prb` to work.
+# pg = ProbeGroup()
+# pg.add_probe(probe_2d)
+# # CHANGE THIS PATH to wherever you want to save your probe file.
+# write_prb('CorePlate_6W_38_60.prb', pg)
+recording.set_probe(probe_2d)
+dtype = np.int16
+filename, N, c, s, fs, probe_path = io.spikeinterface_to_binary(
+    recording, fileDirectory, data_name='data_io.bin', dtype=dtype,
+    chunksize=60000, export_probe=True,probe_name='Probe_io.prb'
+    )
+
+# 'chanMap': the channel indices that are included in the data.
+# 'xc':      the x-coordinates (in micrometers) of the probe contact centers.
+# 'yc':      the y-coordinates (in micrometers) of the probe contact centers.
+# 'kcoords': shank or channel group of each contact.
+# 'n_chan':  the number of channels.
+
+
+
+'''
+
+Probe for kilosort
+
+'''
+
+chanMap = np.arange(Number_electrodes)
+kcoords = np.zeros(Number_electrodes)
+
+
+probe = {
+    'chanMap': chanMap,
+    'xc': positions[:,0],
+    'yc': positions[:,1],
+    'kcoords': kcoords,
+    'n_chan': Number_electrodes
+}
+
+
+os.chdir(fileDirectory)
+save_probe(probe, Probe_name)
+
+print(probe)
+
 
 
 # #%
@@ -543,7 +578,7 @@ MAIN_SETTINGS = {
             # """
 
 
-    'batch_size': int(3 * samplingRate), 
+    'batch_size': int(2 * samplingRate), 
     
             # """
             # Number of samples included in each batch of data.
@@ -688,7 +723,7 @@ MAIN_SETTINGS = {
             # `int(20 * settings['nt']/61)`.
             # """
     
-    'dmin': None, # 60 prev #################
+    'dmin': 60, # None prev #################
     
             # """
             # Vertical spacing of template centers used for spike detection,
@@ -842,7 +877,8 @@ reuslts_dir = './Kilo_out'
 create_directory(reuslts_dir)
 
 #The first two channels are of calibration...
-bad_ch = [0,1]
+# bad_ch = [0,1]
+bad_ch = []
 
 
 
@@ -856,9 +892,10 @@ kilosort.run_kilosort.run_kilosort(settings, probe=None, probe_name=None, filena
 
 '''
 
-probe = io.load_probe(Probe_path)
+probe = load_probe(Probe_path)
+# probe = io.load_probe(probe_path)
 
-#%%
+#%
 ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
     run_kilosort(
         settings=MAIN_SETTINGS,
@@ -871,6 +908,35 @@ ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes 
         device  = torch.device('cpu'),
         save_preprocessed_copy=True
         )
+# 
+
+# ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
+#     run_kilosort(
+#         settings=MAIN_SETTINGS,
+#         probe= probe,
+#         filename = filename,
+#         results_dir = reuslts_dir,
+#         data_dtype= 'int16',
+#         bad_channels=bad_ch,
+        
+#         device  = torch.device('cpu'),
+#         save_preprocessed_copy=True
+#         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
