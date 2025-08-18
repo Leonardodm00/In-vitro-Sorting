@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ -*- coding: utf-8 -*-
 # """
 # Created on Wed Aug  6 16:52:43 2025
 
@@ -61,8 +61,7 @@ Notes:
 
 
 '''
-
-
+#%
 
 
 
@@ -177,8 +176,8 @@ def GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames):
 
 # ------------------------ SAVING RECORDING IN BATCHES ------------------------
 
-wellID_array = ['Well_A1','Well_A2','Well_A3','Well_B1','Well_B2','Well_B3'] #change well 
-
+wellID_array = ['Well_A2','Well_A3','Well_B1','Well_B2'] #change well 
+# 'Well_A1','Well_A2','Well_A3','Well_B1','Well_B2','Well_B3'
 
 
 for wellID in wellID_array:
@@ -190,7 +189,7 @@ for wellID in wellID_array:
     
     # Create the base output directory with the wellID embedded
     basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
-
+    
     # Check if the directory exists and create it if it doesn't
     if not os.path.exists(basedir_out):
         os.makedirs(basedir_out)
@@ -198,140 +197,162 @@ for wellID in wellID_array:
     else:
         print(f"Directory already exists: {basedir_out}")
     
-
-
+    
+    
     file_path_row= Path(str(fileDirectory + fileName))
     
-    useSyntheticNoise = True
+    # useSyntheticNoise = True
     
-    total_sec =25#500
-    Batch_size =5#250
+    # total_sec =500
+    # Batch_size =100
     
-    n_b = int(total_sec/Batch_size)
+    # n_b = int(total_sec/Batch_size)
     
-    for j in range(0,n_b) :
-        dataStartPositionSec = j*Batch_size
-        dataDurationSec = Batch_size
+    # for j in range(0,n_b) :
+    #     dataStartPositionSec = j*Batch_size
+    #     dataDurationSec = Batch_size
         
-        print('Start sec',dataStartPositionSec)
-        print('Finish sec',dataStartPositionSec + dataDurationSec)
-        
-        
-        
-        '''
-        First 2 channels are used for calibration... Disregard them
+    #     print('Start sec',dataStartPositionSec)
+    #     print('Finish sec',dataStartPositionSec + dataDurationSec)
         
         
         
-        '''
-        
-        '''
-        Probe info
-        
-        '''
-        
-        # # CorePlate™ 1W 38/60
-        # pitch = 60 # um   
-        # Electrode_size = 21 # um
-        
-        
-        # # CorePlate™ 1W 27/42L
-        # pitch = 42 # um   
-        # Electrode_size = 21 # um
-        
-        
-        # # CorePlate™ 1W 51/81
-        # pitch = 81 # um   
-        # Electrode_size = 21 # um
-        
-        # CorePlate™ 6W 38/60
-        pitch = 60 # um   
-        Electrode_size = 25 # um
+    #     '''
+    #     First 2 channels are used for calibration... Disregard them
         
         
         
+    #     '''
         
-        
-        '''
-        Extraction
-        
-        '''
-        
-        with h5py.File(file_path_row, 'r') as file:
-        
-            # collect experiment information
-            
-            samplingRate = file.attrs['SamplingRate']
-            chIdxs = np.array(file[wellID + '/StoredChIdxs'])
-            
-            # convert the requested time interval from seconds to frames
-            startFrame = int(dataStartPositionSec * samplingRate)
-            numFrames = int(dataDurationSec * samplingRate)
-            
-            
-            # Variables for covertion from digital to analog
-            
-            minDigitalValue = file.attrs['MinDigitalValue']
-            maxDigitalValue = file.attrs['MaxDigitalValue'] 
-            minAnalogValue = file.attrs['MinAnalogValue'] 
-            maxAnalogValue = file.attrs['MaxAnalogValue'] 
-            
-            ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
-            OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
-            
-            
-            
-            
-            # initialize an empty (fill with zeros) data collection
-            data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
-            # fill the data collection with Gaussian noise if requested
-            if useSyntheticNoise:
-                    GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
-            # fill the data collection with the decoded event based sparse raw data
-            DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
-        
-        
-        data_matrix = np.array(list(data.values()), dtype=np.int16)
-        data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
-        # for s in range(data_matrix.shape[0]):
-            
-        #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
-        
-        '''
-        Construct the RASTER matrix used in Spike interface.
-        
-        '''
-        file_path= basedir_out + f'\Data{j}.bin'
-        recording = se.NumpyRecording(data_matrix.T, samplingRate)
-        si.write_binary_recording(recording, file_path, dtype=np.float32)
-        Number_electrodes =  recording.get_num_channels()
-        # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
-        # print(f"Traces dtype: {recording.get_dtype()}")
-        
-        # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
-        # # print(recording.get_num_frames(), recording.get_num_channels())
-        # print(recording.get_num_frames(), recording.get_num_channels())
-        
-        # %matplotlib
-        # PLOT TRACES
-        timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
-        plt.title('Saved time series')
-        plt.show()
       
-        del data_matrix
-        del recording
+        
+        
+        
+    #     '''
+    #     Extraction
+        
+    #     '''
+        
+    #     with h5py.File(file_path_row, 'r') as file:
+        
+    #         # collect experiment information
+            
+    #         samplingRate = file.attrs['SamplingRate']
+    #         chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+            
+    #         # convert the requested time interval from seconds to frames
+    #         startFrame = int(dataStartPositionSec * samplingRate)
+    #         numFrames = int(dataDurationSec * samplingRate)
+            
+            
+    #         # Variables for covertion from digital to analog
+            
+    #         minDigitalValue = file.attrs['MinDigitalValue']
+    #         maxDigitalValue = file.attrs['MaxDigitalValue'] 
+    #         minAnalogValue = file.attrs['MinAnalogValue'] 
+    #         maxAnalogValue = file.attrs['MaxAnalogValue'] 
+            
+    #         ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+    #         OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
+            
+            
+            
+            
+    #         # initialize an empty (fill with zeros) data collection
+    #         data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
+    #         # fill the data collection with Gaussian noise if requested
+    #         if useSyntheticNoise:
+    #                 GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
+    #         # fill the data collection with the decoded event based sparse raw data
+    #         DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
+        
+        
+    #     data_matrix = np.array(list(data.values()), dtype=np.int16)
+    #     data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
+    #     # for s in range(data_matrix.shape[0]):
+            
+    #     #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
+        
+    #     '''
+    #     Construct the RASTER matrix used in Spike interface.
+        
+    #     '''
+    #     file_path= basedir_out + f'\Data{j}.bin'
+    #     recording = se.NumpyRecording(data_matrix.T, samplingRate)
+    #     si.write_binary_recording(recording, file_path, dtype=np.float32)
+    #     Number_electrodes =  recording.get_num_channels()
+    #     # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
+    #     # print(f"Traces dtype: {recording.get_dtype()}")
+        
+    #     # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
+    #     # # print(recording.get_num_frames(), recording.get_num_channels())
+    #     # print(recording.get_num_frames(), recording.get_num_channels())
+        
+    #     # %matplotlib
+    #     # PLOT TRACES
+    #     timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
+    #     plt.title('Saved time series')
+    #     plt.show()
+      
+    #     del data_matrix
+    #     del recording
     
     
     
     
-
     
-  
+    
+      
     # if __name__ == '__main__':
     
     # variables
     file_path_row= Path(str(fileDirectory + fileName))
     Number_electrodes = 2304
+     
+    #------------- Probe -------------
+    # The electrodes are set in square geometry
+      
+    '''
+    Probe info
+    
+    '''
+    
+    # # CorePlate™ 1W 38/60
+    # pitch = 60 # um   
+    # Electrode_size = 21 # um
+    
+    
+    # # CorePlate™ 1W 27/42L
+    # pitch = 42 # um   
+    # Electrode_size = 21 # um
+    
+    
+    # # CorePlate™ 1W 51/81
+    # pitch = 81 # um   
+    # Electrode_size = 21 # um
+    
+    # CorePlate™ 6W 38/60
+    pitch = 60 # um   
+    Electrode_size = 25 # um
+    
+    k = 0
+    n = int(math.sqrt(Number_electrodes))
+    positions = np.zeros((Number_electrodes, 2))
+    for i in range(n):
+        for j in range(n):
+            x = i * pitch
+            y = j * pitch
+            positions[k] = x, y
+            k =k+1
+            
+    
+    
+    
+    
+    
+    
+    
+    
     
     with h5py.File(file_path_row, 'r') as file:
     
@@ -401,10 +422,11 @@ for wellID in wellID_array:
         
         
         
-        # recording_list = [recc1, recc2,recc3]
+        # recording_list = [recc1]
         recording_list = [recc1, recc2,recc3,recc4,recc5]
-        # full_rec = concatenate_recordings(recording_list).get_traces(channel_ids=set_ch)
-        full_rec = recc1.select_channels(channel_ids=set_ch)
+        full_rec = si.concatenate_recordings(recording_list)
+        print(full_rec)
+        full_rec = full_rec.select_channels(channel_ids=set_ch)
         print(full_rec)
         # timeseries_plot = sw.plot_traces(full_rec,channel_ids = np.arange(3,20) ,time_range=(1,1.2))
         del recc1
@@ -415,53 +437,22 @@ for wellID in wellID_array:
       
         Num_channels = len(set_ch)
         
+        Probe_range =np.arange(Num_channels)
         
         
-        #------------- Probe -------------
-        # The electrodes are set in square geometry
-          
-        '''
-        Probe info
-        
-        '''
-        
-        # # CorePlate™ 1W 38/60
-        # pitch = 60 # um   
-        # Electrode_size = 21 # um
-        
-        
-        # # CorePlate™ 1W 27/42L
-        # pitch = 42 # um   
-        # Electrode_size = 21 # um
-        
-        
-        # # CorePlate™ 1W 51/81
-        # pitch = 81 # um   
-        # Electrode_size = 21 # um
-        
-        # CorePlate™ 6W 38/60
-        pitch = 60 # um   
-        Electrode_size = 25 # um
-        
-        k = 0
-        n = int(math.sqrt(Num_channels))
-        positions = np.zeros((Num_channels, 2))
-        for i in range(n):
-            for j in range(n):
-                x = i * pitch
-                y = j * pitch
-                positions[k] = x, y
-                k =k+1
-                
         
         # Generate the probe variable
         
         probe_2d = Probe(ndim=2, si_units='um')
-        probe_2d.set_contacts(positions=positions, shapes='square', shape_params={'width': Electrode_size})
+        probe_2d.set_contacts(positions=positions[set_ch,:], shapes='square', shape_params={'width': Electrode_size})
         
-        # Set channel indicies
-        Ch_idx = np.arange(Num_channels)
-        probe_2d.set_device_channel_indices(Ch_idx)
+        
+        probe_2d.set_device_channel_indices(Probe_range)
+    
+        
+       
+        
+       
         
         # Plot the probe
         # plot_probe(probe_2d)
@@ -695,7 +686,7 @@ for wellID in wellID_array:
     
         sorting_parameters2 = ms5.Scheme2SortingParameters(
             phase1_detect_channel_radius=150,
-            detect_channel_radius=50,
+            detect_channel_radius=60,
             training_duration_sec=50,
             phase1_detect_threshold=5.0,
             phase1_detect_time_radius_msec=1.5,
@@ -704,10 +695,10 @@ for wellID in wellID_array:
             phase1_npca_per_subdivision=10,
             phase1_pairwise_merge_step=False,
             detect_sign=0,
-            detect_threshold=5.5,
+            detect_threshold=5.0,
             snippet_T1=int(1*(samplingRate/1000)),
             snippet_T2=int(2*(samplingRate/1000)),
-            snippet_mask_radius=60,
+            snippet_mask_radius=80,
             max_num_snippets_per_training_batch=200,
             classifier_npca=None,
             training_recording_sampling_mode='uniform',
@@ -727,7 +718,7 @@ for wellID in wellID_array:
         # use scheme 2
         sorting_MS5 = ms5.sorting_scheme2(
             recording=recording_WT,
-            sorting_parameters=sorting_parameters2
+            sorting_parameters=sorting_parameters2,
         )
     
     
@@ -757,19 +748,14 @@ for wellID in wellID_array:
         
         # Generate the probe variable
         
-        probe_2d = Probe(ndim=2, si_units='um')
-        probe_2d.set_contacts(positions=positions[:,:], shapes='square', shape_params={'width': Electrode_size})
-        
-        # Set channel indicies
-        Ch_idx = np.arange(Num_channels)
-        probe_2d.set_device_channel_indices(Ch_idx)
+     
         
         # Plot the probe
         # plot_probe(probe_2d)
                  
         
         # --- analyzer ---
-        analyzer_string = f"analyzer{it}"
+        analyzer_string = f"analyzer{wellID}{it}"
         
         # # Check if the folder exists and manually delete it
         # if os.path.exists(analyzer_string):
@@ -984,7 +970,7 @@ for wellID in wellID_array:
     
     
         
- 
+     
      
      
      
@@ -992,7 +978,7 @@ for wellID in wellID_array:
      
     
     
-    sorting_MS5_curated.save_as(folder="Sorting_analyzer") # we shold get the spatial position of units
+    # sorting_MS5_curated.save_as(folder="Sorting_analyzer") # we shold get the spatial position of units
     
     
     os.chdir(basedir_out)
@@ -1001,7 +987,7 @@ for wellID in wellID_array:
     
     # Save the second array to 'data2.csv'
     np.savetxt('Unit_Location.csv', np.vstack(Position_complete), delimiter=',')
-
+    
 
 
 
