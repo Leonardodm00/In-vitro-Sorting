@@ -1,3 +1,5 @@
+
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,6 +35,18 @@ from kilosort import io
 from kilosort import run_kilosort
 from kilosort.io import save_probe
 from kilosort.io import load_probe
+
+
+'''
+Notes:
+    1) For now LUSSAC method is not used
+
+
+
+'''
+#%
+
+
 
 #%
 def create_directory(dir_path):
@@ -141,789 +155,1072 @@ def GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames):
             data[chIdx] = np.array(np.random.normal(dataMean, dataStdDev, numFrames),
                                    dtype=np.int16)
 
-# variables
-fileDirectory = r"C:\Users\Admin\Desktop\Leonardo\Prova LOW"   #put the path
-Probe_name = 'CorePlate_6W_38_60.json'
-fileName  = r'\1481_DIV56_lowDens600_nbasal_001_00.brw' #filevname 
+# Clear the workspace
+# %reset -f
+# ------------------------ SAVING RECORDING IN BATCHES ------------------------
 
-Probe_path = r"C:\Users\Admin\Desktop\Leonardo\Prova LOW\CorePlate_6W_38_60.json"
-wellID = 'Well_A1' #change well 
-file_path= Path(str(fileDirectory + fileName))
-print(file_path)
-
-useSyntheticNoise = True
-dataStartPositionSec = 0
-dataDurationSec = 5
-'''
-First 2 channels are used for calibration... Disregard them
+wellID_array = ['Well_A1'] #change well 
+# 'Well_A1','Well_A2','Well_A3','Well_B1','Well_B2','Well_B3'
 
 
-
-'''
-
-'''
-Probe info
-
-'''
-
-# # CorePlate™ 1W 38/60
-# pitch = 60 # um   
-# Electrode_size = 21 # um
+for wellID in wellID_array:
 
 
-# # CorePlate™ 1W 27/42L
-# pitch = 42 # um   
-# Electrode_size = 21 # um
-
-
-# # CorePlate™ 1W 51/81
-# pitch = 81 # um   
-# Electrode_size = 21 # um
-
-# CorePlate™ 6W 38/60
-pitch = 60 # um   
-Electrode_size = 25 # um
-
-
-
-
-
-'''
-Extraction
-
-'''
-
-with h5py.File(file_path, 'r') as file:
-
-    # collect experiment information
+    # # variables
+    # fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
+    # fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
     
-    samplingRate = file.attrs['SamplingRate']
-    chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+    # # Create the base output directory with the wellID embedded
+    # basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
     
-    # convert the requested time interval from seconds to frames
-    startFrame = int(dataStartPositionSec * samplingRate)
-    numFrames = int(dataDurationSec * samplingRate)
-    
-    
-    # Variables for covertion from digital to analog
-    
-    minDigitalValue = file.attrs['MinDigitalValue']
-    maxDigitalValue = file.attrs['MaxDigitalValue'] 
-    minAnalogValue = file.attrs['MinAnalogValue'] 
-    maxAnalogValue = file.attrs['MaxAnalogValue'] 
-    
-    ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
-    OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
+    # # Check if the directory exists and create it if it doesn't
+    # if not os.path.exists(basedir_out):
+    #     os.makedirs(basedir_out)
+    #     print(f"Created directory: {basedir_out}")
+    # else:
+    #     print(f"Directory already exists: {basedir_out}")
     
     
     
+    # file_path_row= Path(str(fileDirectory + fileName))
     
-    # initialize an empty (fill with zeros) data collection
-    data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
-    # fill the data collection with Gaussian noise if requested
-    if useSyntheticNoise:
-            GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
-    # fill the data collection with the decoded event based sparse raw data
-    DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
-
-
-data_matrix = np.array(list(data.values()), dtype=np.int16)
-
-'''
-Construct the RASTER matrix used in Spike interface.
-
-'''
-
-recording = se.NumpyRecording(data_matrix.T, samplingRate)
-si.write_binary_recording(recording, file_path.parent.joinpath("Data_matrix.bin"), dtype=np.int16)
-Number_electrodes =  recording.get_num_channels()
-file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
-print(f"Traces dtype: {recording.get_dtype()}")
-
-# Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
-# print(recording.get_num_frames(), recording.get_num_channels())
-print(recording.get_num_frames(), recording.get_num_channels())
-
-# PLOT TRACES
-timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,23) ,time_range=(0,10),figsize=(8,10))
-
-plt.show()
-
-#%
-
-
-
-# '''
-
-# Define the probe
-
-# '''
-# The electrodes are set in square geometry
-Number_electrodes =  recording.get_num_channels()
-k = 0
-n = int(math.sqrt(Number_electrodes))
-positions = np.zeros((Number_electrodes, 2))
-for i in range(n):
-    for j in range(n):
-        x = i * pitch
-        y = j * pitch
-        positions[k] = x, y
-        k =k+1
+    # useSyntheticNoise = True
+    
+    # total_sec =500
+    # Batch_size =100
+    
+    # n_b = int(total_sec/Batch_size)
+    
+    # for j in range(0,n_b) :
+    #     dataStartPositionSec = j*Batch_size
+    #     dataDurationSec = Batch_size
         
-
-# Generate the probe variable
-
-probe_2d = Probe(ndim=2, si_units='um')
-probe_2d.set_contacts(positions=positions, shapes='square', shape_params={'width': Electrode_size})
-
-# Set channel indicies
-Ch_idx = np.arange(Number_electrodes)
-probe_2d.set_device_channel_indices(Ch_idx)
-
-# Plot the probe
-plot_probe(probe_2d)
-
-# To get the maximum value of the 'x' column:
-max_x = max(positions[:,0])  # Expressed in um
-
-# To compute the right x_centers value we must devided the max value by the suggested inter-center
-# distance ( few hundred microsn:  200um
-
-x_Cent = int(max_x/200)
-
-
-'''
-Save the probe
-
-'''
-
-# # Multiple probes can be added to a ProbeGroup. We only have one, but a
-# # ProbeGroup wrapper is still necessary for `write_prb` to work.
-# pg = ProbeGroup()
-# pg.add_probe(probe_2d)
-# # CHANGE THIS PATH to wherever you want to save your probe file.
-# write_prb('CorePlate_6W_38_60.prb', pg)
-recording.set_probe(probe_2d)
-dtype = np.int16
-filename, N, c, s, fs, probe_path = io.spikeinterface_to_binary(
-    recording, fileDirectory, data_name='data_io.bin', dtype=dtype,
-    chunksize=60000, export_probe=True,probe_name='Probe_io.prb'
-    )
-
-# 'chanMap': the channel indices that are included in the data.
-# 'xc':      the x-coordinates (in micrometers) of the probe contact centers.
-# 'yc':      the y-coordinates (in micrometers) of the probe contact centers.
-# 'kcoords': shank or channel group of each contact.
-# 'n_chan':  the number of channels.
-
-
-
-'''
-
-Probe for kilosort
-
-'''
-
-chanMap = np.arange(Number_electrodes)
-kcoords = np.zeros(Number_electrodes)
-
-
-probe = {
-    'chanMap': chanMap,
-    'xc': positions[:,0],
-    'yc': positions[:,1],
-    'kcoords': kcoords,
-    'n_chan': Number_electrodes
-}
-
-
-os.chdir(fileDirectory)
-save_probe(probe, Probe_name)
-
-print(probe)
-
-
-
-# #%
-
-# '''
-# Define the Kilosort options
-
-# '''
-
-# print("kilosort4 params:")
-# pprint(ss.get_default_sorter_params('kilosort4'))
-
-
-# # Change parameters' value
-# # Read https://github.com/MouseLand/Kilosort/blob/main/kilosort/parameters.py for exaustive explanation of the parameters
-# # Read https://www.nature.com/articles/s41592-024-02232-7 for the explanatory article
-
-# other_params = ss.get_default_sorter_params('kilosort4')
-
-# ############# ORIGINAL
-# other_params['batch_size'] =  int(3 * samplingRate)   
-# other_params['binning_depth'] = 0
-
-
-# # These adjust the vertical and lateral spacing, respectively, of the universal templates used during spike detection, 
-# # as well as the vertical and lateral sizes of channel neighborhoods used for clustering. 
-# # By default, Kilosort will attempt to determine a good value for dmin based on the median distance between contacts,
-# # which tends to work well for Neuropixels-like probes. However, if contacts are irregularly spaced, you may need to specify this manually. 
-# # The default for dminx is 32um, which is also well suited to Neuropixels probes. For other probes, try setting dminx to the median lateral distance between contacts as a starting point.
-
-# # Good values, don't touch them
-# other_params['dmin'] = None # prev 60
-# other_params['dminx'] = 60  # 32
-# ###########
-
-# # This is the number of nearest channels and template locations, respectively, used when assigning templates to spikes during spike detection. 
-# # nearest_chans cannot be larger than the total number of channels on the probe, so it will need to be reduced for probes with less than 10 channels.
-# #  nearest_templates does not have this restriction. However, for probes with around 64 channels or less and sparsely spaced contacts,
-# #  decreasing nearest_templates to be less than or equal to the number of channels helps avoid numerical instability.
-# other_params['nearest_chans'] = 10   # 10
-# other_params['nearest_templates'] =100 #100
-# #############
-
-# # The number of x-positions to use when determining centers for template groupings. Specifically, this is the number of centroids to look for when 
-# # using k-means to cluster the x-positions for the probe. In most cases you should not need to specify this. However, for probes with contacts arranged in a 2D grid, 
-# # we recommend setting x_centers such that centers are placed every 200-300um so that there are not too many templates in each group. For example, for an array that
-#  # is 2000um in width, try x_centers = 10. If contacts are very densely spaced, you may need to use a higher value for better performance.
-# other_params['x_centers'] =  x_Cent # None
-# ###########
-
-# # Indicates whether spike shapes used in universal templates should be
-# # estimated from the data or loaded from the predefined templates.
-# other_params['templates_from_data'] = True
-# ###########
-#  # Number of single-channel templates to use for the universal
-#  # templates (only used if templates_from_data is True)
-
-
-# other_params['n_templates'] = 6 # 6
-# ###########
-
-# # Number of single-channel PCs to use for extracting spike features
-# # (only used if templates_from_data is True).
-# other_params['n_pcs'] = 6 # 6
-# ###########
-
-# # Number of nearby channels used to estimate the whitening matrix.
-# other_params['whitening_range'] = 32 # 32
-# ############
-
-# # Inverse fraction of nodes used as landmarks during clustering
-# # (can be 1, but that slows down the optimization). 
-# other_params['cluster_downsampling'] = 20 # 20
-
-
-# # Scalar shift to apply to data before all other operations. In most
-# # cases this should be left as None, but may be necessary for float32
-# # data for example. If needed, `shift` and `scale` should be set such
-# # that data is roughly in the range -100 to +100.
-# other_params['scale'] = ConversionFactor
-
-
-# #Scaling factor to apply to data before all other operations. In most
-# # cases this should be left as None, but may be necessary for float32
-# # data for example. If needed, `shift` and `scale` should be set such
-# # that data is roughly in the range -100 to +100.
-# other_params['shift'] = OffsetValue
-
-# # Templates farther away than this from their nearest channel will
-# # not be used. Also limits distance between compared channels during
-# # clustering.
-# other_params['max_channel_distance'] = 32  #32  ### Critical 
-
-
-# #  Standard deviation of the smallest, spatial envelope Gaussian used
-# #  for universal templates.
-# other_params['min_template_size'] = 25  # 25 um is the electrode witdh # 10
-
-
-# # Number of sizes for universal spike templates (multiples of the
-# # min_template_size).
-# other_params['template_sizes'] = 3
-
-# # Number of non-overlapping blocks for drift correction
-# # (additional nblocks-1 blocks are created in the overlaps).
-# other_params['nblocks'] = 0 # 1
-
-
-# # Batch stride for computing whitening matrix.
-# other_params['nskip'] = 25 # 25  
-
-
-# # This is the number of time samples used to represent spike waveforms, as well as 
-# # the amount of symmetric padding for filtering. The default represents 2ms + 1 bin
-# # for a sampling rate of 30kHz. For a different sampling rate, you may want to adjust accordingly.
-# # For example, nt = 81 would be the 2ms equivalent for 40kHz.
-# nt_ms = 2.5  # [ms]
-# nt_s = nt_ms / 1000  # [s]
-# # nt_opt = int(nt_s * samplingRate) + 1
-# other_params['nt'] = int(nt_s * samplingRate) + 1
-
-# # Sample index for aligning waveforms, so that their minimum 
-# # or maximum value happens here. Defaults to 
-# # `int(20 * settings['nt']/61)`.
-# nt_min_ms = 1 # [ms]
-# nt_min_s = nt_min_ms / 1000  # [s]
-
-# other_params['nt0min'] = int(nt_min_s * samplingRate)
-
-
-# # These control the threshold for spike detection when applying the universal and learned templates,
-# # respectively (loosely similar to Th(1) and Th(2) in previous versions). If few spikes are detected,
-# # or if you see neurons disappearing and reappearing over time when viewing results in Phy, it may help to decrease Th_learned.
-# # To detect more units overall, it may help to reduce Th_universal. Try reducing each threshold by 1 or 2 at a time.
-
-# # Spike detection threshold for learned templates.
-# # Th(2) in previous versions of Kilosort.
-
-# other_params['Th_learned'] = 8 # 8
-
-# # Spike detection threshold for universal templates.
-# # Th(1) in previous versions of Kilosort.
-# other_params['Th_universal'] = 9 # 9
-
-# # For single channel threshold crossings to compute universal-
-# # templates. In units of whitened data standard deviations. 
-# # Whitened data have traces quite shrunk when compared with the raw ones, thus a low TH value
-# # is reasonable
-# other_params['Th_single_ch'] = 5 # 6
-
-
-
-# # FIlter
-# other_params['highpass_cutoff'] = 300 # 300
-
-
-# other_params['save_preprocessed_copy'] = True
-# other_params['skip_kilosort_preprocessing'] = False
-# other_params['keep_good_only'] = False
-
-
-# #%%
-# '''
-# Load binary matrix
-
-# '''
-# # del TS
-# file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
-
-# Bin_recording = se.BinaryRecordingExtractor(file_paths=file_path_bin, 
-#                                             sampling_frequency=samplingRate,dtype='int16',
-#                                             num_channels=Number_electrodes)
-
-# # Load the probe
-# Bin_recording = Bin_recording.set_probe(probe_2d)
-
-# '''
-# Remove bad channels: the calibration ones
-
-# '''
-
-# Bin_recording = Bin_recording.remove_channels([0,1])
-
-# # # timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
-# # # Check the extraction
-# print(Bin_recording)
-# %matplotlib
-# timeseries_plot = sw.plot_traces(Bin_recording,channel_ids =np.arange(50,70),time_range=(0,2))
-# plt.show()
-
-
-
-
-
-# #%%
-# sorting_ = ss.run_sorter(
-#     sorter_name="kilosort4", recording=Bin_recording, output_folder="kilosort4_output", **other_params,remove_existing_folder = True)
-# print(sorting_)
-
-
-
-#%%
-
-
-from kilosort import run_kilosort
-
-
-nt_ms = 2.5  # [ms]
-nt_s = nt_ms / 1000  # [s]
-# nt_opt = int(nt_s * samplingRate) + 1
-
-nt_min_ms = 1 # [ms]
-nt_min_s = nt_min_ms / 1000  # [s]
-
-
-
-
-MAIN_SETTINGS = {
-    # NOTE: n_chan_bin must be specified by user when running through API
-    'n_chan_bin': Number_electrodes,
+    #     print('Start sec',dataStartPositionSec)
+    #     print('Finish sec',dataStartPositionSec + dataDurationSec)
+        
+        
+        
+    #     '''
+    #     First 2 channels are used for calibration... Disregard them
+        
+        
+        
+    #     '''
+        
+      
+        
+        
+        
+    #     '''
+    #     Extraction
+        
+    #     '''
+        
+    #     with h5py.File(file_path_row, 'r') as file:
+        
+    #         # collect experiment information
+            
+    #         samplingRate = file.attrs['SamplingRate']
+    #         chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+            
+    #         # convert the requested time interval from seconds to frames
+    #         startFrame = int(dataStartPositionSec * samplingRate)
+    #         numFrames = int(dataDurationSec * samplingRate)
+            
+            
+    #         # Variables for covertion from digital to analog
+            
+    #         minDigitalValue = file.attrs['MinDigitalValue']
+    #         maxDigitalValue = file.attrs['MaxDigitalValue'] 
+    #         minAnalogValue = file.attrs['MinAnalogValue'] 
+    #         maxAnalogValue = file.attrs['MaxAnalogValue'] 
+            
+    #         ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+    #         OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
+            
+            
+            
+            
+    #         # initialize an empty (fill with zeros) data collection
+    #         data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
+    #         # fill the data collection with Gaussian noise if requested
+    #         if useSyntheticNoise:
+    #                 GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
+    #         # fill the data collection with the decoded event based sparse raw data
+    #         DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
+        
+        
+    #     data_matrix = np.array(list(data.values()), dtype=np.int16)
+    #     data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
+    #     # for s in range(data_matrix.shape[0]):
+            
+    #     #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
+        
+    #     '''
+    #     Construct the RASTER matrix used in Spike interface.
+        
+    #     '''
+    #     file_path= basedir_out + f'\Data{j}.bin'
+    #     recording = se.NumpyRecording(data_matrix.T, samplingRate)
+    #     si.write_binary_recording(recording, file_path, dtype=np.float32)
+    #     Number_electrodes =  recording.get_num_channels()
+    #     # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
+    #     # print(f"Traces dtype: {recording.get_dtype()}")
+        
+    #     # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
+    #     # # print(recording.get_num_frames(), recording.get_num_channels())
+    #     # print(recording.get_num_frames(), recording.get_num_channels())
+        
+    #     # %matplotlib
+    #     # PLOT TRACES
+    #     # timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
+    #     # plt.title('Saved time series')
+    #     # plt.show()
+      
+    #     del data_matrix
+    #     del recording
     
-            # """
-            # Total number of channels in the binary file, which may be different
-            # from the number of channels containing ephys data. The value of this
-            # parameter *must* be specified by the user, or `run_kilosort` will
-            # raise a ValueError.
-            # """
-  
+    
+    
+    
+    
+    # %reset -f
+    
+    # variables
+    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
+    fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
+    
+    # Create the base output directory with the wellID embedded
+    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+    
+    # Check if the directory exists and create it if it doesn't
+    if not os.path.exists(basedir_out):
+        os.makedirs(basedir_out)
+        print(f"Created directory: {basedir_out}")
+    else:
+        print(f"Directory already exists: {basedir_out}")
+    
+    
+    
+    file_path_row= Path(str(fileDirectory + fileName))
+      
+    # if __name__ == '__main__':
+    
+    # variables
+    file_path_row= Path(str(fileDirectory + fileName))
+    Number_electrodes = 2304
+     
+    #------------- Probe -------------
+    # The electrodes are set in square geometry
+      
+    '''
+    Probe info
+    
+    '''
+    
+    # # CorePlate™ 1W 38/60
+    # pitch = 60 # um   
+    # Electrode_size = 21 # um
+    
+    
+    # # CorePlate™ 1W 27/42L
+    # pitch = 42 # um   
+    # Electrode_size = 21 # um
+    
+    
+    # # CorePlate™ 1W 51/81
+    # pitch = 81 # um   
+    # Electrode_size = 21 # um
+    
+    # CorePlate™ 6W 38/60
+    pitch = 60 # um   
+    Electrode_size = 25 # um
+    
+    k = 0
+    n = int(math.sqrt(Number_electrodes))
+    positions = np.zeros((Number_electrodes, 2))
+    for i in range(n):
+        for j in range(n):
+            x = i * pitch
+            y = j * pitch
+            positions[k] = x, y
+            k =k+1
+            
+    
+    
+    # To get the maximum value of the 'x' column:
+    max_x = max(positions[:,0])  # Expressed in um
 
-    'fs': samplingRate, 
+    # To compute the right x_centers value we must devided the max value by the suggested inter-center
+    # distance ( few hundred microsn:  200um
+
+    x_Cent = int(max_x/200)
+    
+    
+    
+    
+    
+    
+    with h5py.File(file_path_row, 'r') as file:
+    
+        # collect experiment information
+        
+        samplingRate = file.attrs['SamplingRate']
+        chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+    
+        
+        # Variables for covertion from digital to analog
+        
+        minDigitalValue = file.attrs['MinDigitalValue']
+        maxDigitalValue = file.attrs['MaxDigitalValue'] 
+        minAnalogValue = file.attrs['MinAnalogValue'] 
+        maxAnalogValue = file.attrs['MaxAnalogValue'] 
+        
+        ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+        OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue
+        
+        
+        
+        
+        
+    
+    # ------- SPLIT Channels -------
+    
+    split_amount = 4
+    Full_probe_idx =np.arange(2304) # Create the initial array
        
-            # """
-            # Sampling frequency of probe.
-            # """
+    
+    # Split the array into four equal parts
+    Channel_Idx = np.split(Full_probe_idx, split_amount)
+    
+    Num_channels = int(Number_electrodes/split_amount)
+    
+    # Main variables
+    
+    summed_units = 0
+    
+    Raster_complete= []
+    Position_complete = []
+    Number_of_units = []
+    # -------------------- MAIN LOOP ----------------------
+    it = 0
+    for set_ch in Channel_Idx: #!!!!!!!!!!!!!!!!!!!!
+        print('NEW ITERATION: {}'.format(it))
+        print('Channel used:')
+        print(set_ch)
+        # # ------------------------ RECONSTRUCTING THE WHOLE SIGNAL ------------------------
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data0.bin"
+        recc1 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
+        
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data1.bin"
+        recc2 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data2.bin"
+        recc3 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data3.bin"
+        recc4 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data4.bin"
+        recc5 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
+        
+        
+        
+        
+        recording_list = [recc1]
+        # recording_list = [recc1, recc2,recc3,recc4,recc5]
+        full_rec = si.concatenate_recordings(recording_list)
+        # print(full_rec)
+        full_rec = full_rec.select_channels(channel_ids=set_ch)
+        print(full_rec)
+        # timeseries_plot = sw.plot_traces(full_rec,channel_ids = np.arange(3,20) ,time_range=(1,1.2))
+        del recc1
+        del recc2
+        del recc3
+        del recc4
+        del recc5
+      
+        Num_channels = len(set_ch)
+        
+        Probe_range =np.arange(Num_channels)
+        
+        
+        
+        # Generate the probe variable
+        
+        probe_2d = Probe(ndim=2, si_units='um')
+        probe_2d.set_contacts(positions=positions[set_ch,:], shapes='square', shape_params={'width': Electrode_size})
+        
+        
+        probe_2d.set_device_channel_indices(Probe_range)
+    
+        
+       
+        '''
+        
+        Probe for kilosort
+        
+        '''
+        
+        chanMap = np.arange(Num_channels)
+        kcoords = np.zeros(Num_channels)
+        
+        
+        probe = {
+            'chanMap': chanMap,
+            'xc': positions[set_ch,0],
+            'yc': positions[set_ch,1],
+            'kcoords': kcoords,
+            'n_chan': Num_channels
+        }
+        
+        
+        os.chdir(basedir_out)
+        save_probe(probe, 'Probe.json')
+        
+        print(probe)
+
+        
+       
+        
+        # Plot the probe
+        # plot_probe(probe_2d)
+        
+        #------------- Filter the data not neededd in kilosort-------------
+        
+        # # timeseries_plot = sw.plot_traces(full_rec,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
+        
+        # # plt.title('RAW')
+        # # plt.show()
+        
+        
+        # recording_CAR = spre.common_reference(full_rec,operator = 'average')
+        
+        
+        # # timeseries_plot = sw.plot_traces(recording_CAR,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
+        # # plt.title('CAR')
+        
+        # # plt.show()
+        
+        
+        # recording_BUT = spre.highpass_filter(recording_CAR, freq_min=300.0, margin_ms=2.0)
+        
+        # # timeseries_plot = sw.plot_traces(recording_BUT,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
+        # # plt.title('BUTTERWORTH')
+        
+        # # plt.show()
+        
+        # ## Use local whitening, given that the pitch between electrodes is 60 um set the radius at 240 um that correspond to 4 ch
+        # recording_WT = spre.whiten(recording_BUT.set_probe(probe_2d), mode = 'local',radius_um=240.0)
+        
+        
+        # # timeseries_plot = sw.plot_traces(recording_WT,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
+        # # plt.title('WHITENED')
+        
+        # # plt.show()
+        
+        
+        # dataDurationSec = recording_WT.get_duration()
+        
+        
+        
+        
+        
+        '''
+        Define the Kilosort options
+
+        '''
+
+        # print("kilosort4 params:")
+        # pprint(ss.get_default_sorter_params('kilosort4'))
 
 
-    'batch_size': int(2 * samplingRate), 
-    
-            # """
-            # Number of samples included in each batch of data.
-            # """
- 
+        # # Change parameters' value
+        # # Read https://github.com/MouseLand/Kilosort/blob/main/kilosort/parameters.py for exaustive explanation of the parameters
+        # # Read https://www.nature.com/articles/s41592-024-02232-7 for the explanatory article
 
-    'nblocks': 0,
-    
-            # """
-            # Number of non-overlapping blocks for drift correction
-            # (additional nblocks-1 blocks are created in the overlaps).
-            # """
+        # other_params = ss.get_default_sorter_params('kilosort4')
+
+        # ############# ORIGINAL
+        # other_params['batch_size'] =  int(3 * samplingRate)   
+        # other_params['binning_depth'] = 0
 
 
-    'Th_universal': 9, #
-    
-            # """
-            # Spike detection threshold for universal templates.
-            # Th(1) in previous versions of Kilosort.
-            # """
- 
+        # # These adjust the vertical and lateral spacing, respectively, of the universal templates used during spike detection, 
+        # # as well as the vertical and lateral sizes of channel neighborhoods used for clustering. 
+        # # By default, Kilosort will attempt to determine a good value for dmin based on the median distance between contacts,
+        # # which tends to work well for Neuropixels-like probes. However, if contacts are irregularly spaced, you may need to specify this manually. 
+        # # The default for dminx is 32um, which is also well suited to Neuropixels probes. For other probes, try setting dminx to the median lateral distance between contacts as a starting point.
 
-    'Th_learned': 8, #
-    
-            # """
-            # Spike detection threshold for learned templates.
-            # Th(2) in previous versions of Kilosort.
-            # """
-   
+        # # Good values, don't touch them
+        # other_params['dmin'] = None # prev 60
+        # other_params['dminx'] = 60  # 32
+        # ###########
 
-    'tmin': 0, #
-    
-            # """
-            # Time in seconds when data used for sorting should begin. By default,
-            # begins at 0 seconds.
-            # """
-    
- 
-    'tmax': np.inf, #
-    
-            # """
-            # Time in seconds when data used for sorting should end. By default,
-            # ends at the end of the recording.
-            # """
-    
-    'nt': int(nt_s * samplingRate) + 1,
-    
-            # """
-            # Number of samples per waveform. Also size of symmetric padding
-            # for filtering.
-            # """
-    
-    'shift': OffsetValue,
-    
-            # """
-            # Scalar shift to apply to data before all other operations. In most
-            # cases this should be left as None, but may be necessary for float32
-            # data for example. If needed, `shift` and `scale` should be set such
-            # that data is roughly in the range -100 to +100.
+        # # This is the number of nearest channels and template locations, respectively, used when assigning templates to spikes during spike detection. 
+        # # nearest_chans cannot be larger than the total number of channels on the probe, so it will need to be reduced for probes with less than 10 channels.
+        # #  nearest_templates does not have this restriction. However, for probes with around 64 channels or less and sparsely spaced contacts,
+        # #  decreasing nearest_templates to be less than or equal to the number of channels helps avoid numerical instability.
+        # other_params['nearest_chans'] = 10   # 10
+        # other_params['nearest_templates'] =100 #100
+        # #############
+
+        # # The number of x-positions to use when determining centers for template groupings. Specifically, this is the number of centroids to look for when 
+        # # using k-means to cluster the x-positions for the probe. In most cases you should not need to specify this. However, for probes with contacts arranged in a 2D grid, 
+        # # we recommend setting x_centers such that centers are placed every 200-300um so that there are not too many templates in each group. For example, for an array that
+        #  # is 2000um in width, try x_centers = 10. If contacts are very densely spaced, you may need to use a higher value for better performance.
+        # other_params['x_centers'] =  x_Cent # None
+        # ###########
+
+        # # Indicates whether spike shapes used in universal templates should be
+        # # estimated from the data or loaded from the predefined templates.
+        # other_params['templates_from_data'] = True
+        # ###########
+        #  # Number of single-channel templates to use for the universal
+        #  # templates (only used if templates_from_data is True)
+
+
+        # other_params['n_templates'] = 6 # 6
+        # ###########
+
+        # # Number of single-channel PCs to use for extracting spike features
+        # # (only used if templates_from_data is True).
+        # other_params['n_pcs'] = 6 # 6
+        # ###########
+
+        # # Number of nearby channels used to estimate the whitening matrix.
+        # other_params['whitening_range'] = 32 # 32
+        # ############
+
+        # # Inverse fraction of nodes used as landmarks during clustering
+        # # (can be 1, but that slows down the optimization). 
+        # other_params['cluster_downsampling'] = 20 # 20
+
+
+        # # Scalar shift to apply to data before all other operations. In most
+        # # cases this should be left as None, but may be necessary for float32
+        # # data for example. If needed, `shift` and `scale` should be set such
+        # # that data is roughly in the range -100 to +100.
+        # other_params['scale'] = None   # Already scaled
+
+
+        # #Scaling factor to apply to data before all other operations. In most
+        # # cases this should be left as None, but may be necessary for float32
+        # # data for example. If needed, `shift` and `scale` should be set such
+        # # that data is roughly in the range -100 to +100.
+        # other_params['shift'] = None # Already shifted
+
+        # # Templates farther away than this from their nearest channel will
+        # # not be used. Also limits distance between compared channels during
+        # # clustering.
+        # other_params['max_channel_distance'] = 60  #32  ### Critical 
+
+
+        # #  Standard deviation of the smallest, spatial envelope Gaussian used
+        # #  for universal templates.
+        # other_params['min_template_size'] = 25  # 25 um is the electrode witdh # 10
+
+
+        # # Number of sizes for universal spike templates (multiples of the
+        # # min_template_size).
+        # other_params['template_sizes'] = 3
+
+        # # Number of non-overlapping blocks for drift correction
+        # # (additional nblocks-1 blocks are created in the overlaps).
+        # other_params['nblocks'] = 0 # 1
+
+
+        # # Batch stride for computing whitening matrix.
+        # other_params['nskip'] = 25 # 25  
+
+
+        # # This is the number of time samples used to represent spike waveforms, as well as 
+        # # the amount of symmetric padding for filtering. The default represents 2ms + 1 bin
+        # # for a sampling rate of 30kHz. For a different sampling rate, you may want to adjust accordingly.
+        # # For example, nt = 81 would be the 2ms equivalent for 40kHz.
+        # nt_ms = 2.5  # [ms]
+        # nt_s = nt_ms / 1000  # [s]
+        # # nt_opt = int(nt_s * samplingRate) + 1
+        # other_params['nt'] = int(nt_s * samplingRate) + 1
+
+        # # Sample index for aligning waveforms, so that their minimum 
+        # # or maximum value happens here. Defaults to 
+        # # `int(20 * settings['nt']/61)`.
+        # nt_min_ms = 1 # [ms]
+        # nt_min_s = nt_min_ms / 1000  # [s]
+
+        # other_params['nt0min'] = int(nt_min_s * samplingRate)
+
+
+        # # These control the threshold for spike detection when applying the universal and learned templates,
+        # # respectively (loosely similar to Th(1) and Th(2) in previous versions). If few spikes are detected,
+        # # or if you see neurons disappearing and reappearing over time when viewing results in Phy, it may help to decrease Th_learned.
+        # # To detect more units overall, it may help to reduce Th_universal. Try reducing each threshold by 1 or 2 at a time.
+
+
+        # Th_learned = 8
+        # Th_universal = 9
+        # Th_single_ch = 6
+
+
+        # # Spike detection threshold for learned templates.
+        # # Th(2) in previous versions of Kilosort.
+
+        # other_params['Th_learned'] = Th_learned # 8
+
+        # # Spike detection threshold for universal templates.
+        # # Th(1) in previous versions of Kilosort.
+        # other_params['Th_universal'] = Th_universal # 9
+
+        # # For single channel threshold crossings to compute universal-
+        # # templates. In units of whitened data standard deviations. 
+        # # Whitened data have traces quite shrunk when compared with the raw ones, thus a low TH value
+        # # is reasonable
+        # other_params['Th_single_ch'] = Th_single_ch # 6
+
+
+
+        # # FIlter
+        # other_params['highpass_cutoff'] = 300 # 300
+
+
+        # other_params['save_preprocessed_copy'] = True
+        # other_params['skip_kilosort_preprocessing'] = False
+        # other_params['keep_good_only'] = False
+
+
+
+
+
             
-            # If set, data will be `data = data*scale + shift`.
-            # """
+        full_rec = full_rec.remove_channels([0,1])
+        
+        # # timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
+        # # Check the extraction
+        print(full_rec)
+        
+        
+        from kilosort import run_kilosort
 
 
-    'scale': ConversionFactor,
-    
-            # """
-            # Scaling factor to apply to data before all other operations. In most
-            # cases this should be left as None, but may be necessary for float32
-            # data for example. If needed, `shift` and `scale` should be set such
-            # that data is roughly in the range -100 to +100.
+        nt_ms = 2.0  # [ms]
+        nt_s = nt_ms / 1000  # [s]
+        # nt_opt = int(nt_s * samplingRate) + 1
+        
+        nt_min_ms = 1 # [ms]
+        nt_min_s = nt_min_ms / 1000  # [s]
+        
+        batch_size = 30  #[s]
+        Th_learned = 8
+        Th_universal = 6
+        Th_single_ch = 6
+        
+        MAIN_SETTINGS = {
+            # NOTE: n_chan_bin must be specified by user when running through API
+            'n_chan_bin': Number_electrodes,
             
-            # If set, data will be `data = data*scale + shift`.
-            # """
-   
-
-    ### PREPROCESSING
-    'artifact_threshold': np.inf, #
-    
-            # """
-            # If a batch contains absolute values above this number, it will be
-            # zeroed out under the assumption that a recording artifact is present.
-            # By default, the threshold is infinite (so that no zeroing occurs).
-            # """
-   
-
-    'nskip': 25, #
-    
-            # """
-            # Batch stride for computing whitening matrix.
-            # """
-  
-
-    'whitening_range': 32, # 
-    
-            # """
-            # Number of nearby channels used to estimate the whitening matrix.
-            # """
+                    # """
+                    # Total number of channels in the binary file, which may be different
+                    # from the number of channels containing ephys data. The value of this
+                    # parameter *must* be specified by the user, or `run_kilosort` will
+                    # raise a ValueError.
+                    # """
+          
+        
+            'fs': samplingRate, 
+               
+                    # """
+                    # Sampling frequency of probe.
+                    # """
+        
+        
+            'batch_size': int(batch_size * samplingRate), 
+            
+                    # """
+                    # Number of samples included in each batch of data.
+                    # """
+         
+        
+            'nblocks': 0,
+            
+                    # """
+                    # Number of non-overlapping blocks for drift correction
+                    # (additional nblocks-1 blocks are created in the overlaps).
+                    # """
+        
+        
+            'Th_universal': Th_universal, #
+            
+                    # """
+                    # Spike detection threshold for universal templates.
+                    # Th(1) in previous versions of Kilosort.
+                    # """
+         
+        
+            'Th_learned': Th_learned, #
+            
+                    # """
+                    # Spike detection threshold for learned templates.
+                    # Th(2) in previous versions of Kilosort.
+                    # """
+           
+        
+            'tmin': 0, #
+            
+                    # """
+                    # Time in seconds when data used for sorting should begin. By default,
+                    # begins at 0 seconds.
+                    # """
+            
+         
+            'tmax': np.inf, #
+            
+                    # """
+                    # Time in seconds when data used for sorting should end. By default,
+                    # ends at the end of the recording.
+                    # """
+            
+            'nt': int(nt_s * samplingRate) + 1,
+            
+                    # """
+                    # Number of samples per waveform. Also size of symmetric padding
+                    # for filtering.
+                    # """
+            
+            'shift': None,
+            
+                    # """
+                    # Scalar shift to apply to data before all other operations. In most
+                    # cases this should be left as None, but may be necessary for float32
+                    # data for example. If needed, `shift` and `scale` should be set such
+                    # that data is roughly in the range -100 to +100.
+                    
+                    # If set, data will be `data = data*scale + shift`.
+                    # """
+        
+        
+            'scale': None,
+            
+                    # """
+                    # Scaling factor to apply to data before all other operations. In most
+                    # cases this should be left as None, but may be necessary for float32
+                    # data for example. If needed, `shift` and `scale` should be set such
+                    # that data is roughly in the range -100 to +100.
+                    
+                    # If set, data will be `data = data*scale + shift`.
+                    # """
+           
+        
+            ### PREPROCESSING
+            'artifact_threshold': np.inf, #
+            
+                    # """
+                    # If a batch contains absolute values above this number, it will be
+                    # zeroed out under the assumption that a recording artifact is present.
+                    # By default, the threshold is infinite (so that no zeroing occurs).
+                    # """
+           
+        
+            'nskip': 25, #
+            
+                    # """
+                    # Batch stride for computing whitening matrix.
+                    # """
+          
+        
+            'whitening_range': 32, # 
+            
+                    # """
+                    # Number of nearby channels used to estimate the whitening matrix.
+                    # """
+         
+        
+            'highpass_cutoff': 300, #
+            
+                    # """
+                    # Critical frequency for highpass Butterworth filter applied to data.
+                    # """
+          
+        
+            'binning_depth': 0, # 5   #########
+            
+                    # """
+                    # For drift correction, vertical bin size in microns used for
+                    # 2D histogram.
+                    # """
+           
+        
+            'sig_interp': 20, #
+            
+                    # """
+                    # Approximate spatial smoothness scale in units of microns.
+                    # """
+         
+        
+            'drift_smoothing': [0.5, 0.5, 0.5],
+            
+                    # """
+                    # Amount of gaussian smoothing to apply to the spatiotemporal drift
+                    # estimation, for correlation, time (units of registration blocks),
+                    # and y (units of batches) axes. The y smoothing has no effect
+                    # for `nblocks = 1`. Adjusting smoothing for the correlation axis
+                    # is not recommended.
+                    # """
+         
+        
+        
+            ### SPIKE DETECTION
+            # NOTE: if left as None, will be set to `int(20 * settings['nt']/61)`
+            'nt0min': int(nt_min_s * samplingRate),
+            
+                    # """
+                    # Sample index for aligning waveforms, so that their minimum 
+                    # or maximum value happens here. Defaults to 
+                    # `int(20 * settings['nt']/61)`.
+                    # """
+            
+            'dmin': None, # None prev #################
+            
+                    # """
+                    # Vertical spacing of template centers used for spike detection,
+                    # in microns. Determined automatically by default.
+                    # """
+          
+        
+            'dminx': 60, # 32 prev ##############
+            
+                
+                    # """
+                    # Horizontal spacing of template centers used for spike detection,
+                    # in microns. The default 32um should work well for Neuropixels 1 and
+                    # Neuropixels 2 probes. For other probe geometries, try setting this 
+                    # to the median lateral distance between contacts to start.
+                    # """
+           
+        
+            'min_template_size': 20, #10  Could be 20 seeing the electrode size
+            
+                    # """
+                    # Standard deviation of the smallest, spatial envelope Gaussian used
+                    # for universal templates.
+                    # """
+         
+        
+            'template_sizes': 5, #
+            
+                    # """
+                    # Number of sizes for universal spike templates (multiples of the
+                    # min_template_size).
+                    # """
+            
+        
+            'nearest_chans': 10, #
+            
+                    # """
+                    # Number of nearest channels to consider when finding local maxima
+                    # during spike detection.
+                    # """
+            
+        
+            'nearest_templates': 100, #
+            
+                    # """
+                    # Number of nearest spike template locations to consider when finding
+                    # local maxima during spike detection.
+                    # """
+            
+        
+            'max_channel_distance': 60, #32
+            
+                    # """
+                    # Templates farther away than this from their nearest channel will
+                    # not be used. Also limits distance between compared channels during
+                    # clustering.
+                    # """
+        
+            'templates_from_data': True, #
+            
+                    # """
+                    # Indicates whether spike shapes used in universal templates should be 
+                    # estimated from the data or loaded from the predefined templates.
+                    # """
+           
+        
+            'n_templates': 6, #
+            
+                    # """
+                    # Number of single-channel templates to use for the universal
+                    # templates (only used if templates_from_data is True).
+                    # """
+           
+        
+            'n_pcs': 6, #
+            
+                    # """
+                    # Number of single-channel PCs to use for extracting spike features
+                    # (only used if templates_from_data is True).
+                    # """
+            
+        
+            'Th_single_ch': Th_single_ch, #
+            
+            
+                    # """
+                    # For single channel threshold crossings to compute universal-
+                    # templates. In units of whitened data standard deviations. 
+                    # """
+            
+        
+        
+            ### CLUSTERING
+            'acg_threshold':0.2, #
+            
+                    # """
+                    # Fraction of refractory period violations that are allowed in the ACG 
+                    # compared to baseline; used to assign "good" units. 
+                    # """
+            
+        
+            'ccg_threshold': 0.25, #
+            
+                    # """
+                    # Fraction of refractory period violations that are allowed in the CCG
+                    # compared to baseline; used to perform splits and merges.
+                    # """
+        
+            
+        
+            'cluster_downsampling': 20,#
+            
+                    # """
+                    # Inverse fraction of nodes used as landmarks during clustering
+                    # (can be 1, but that slows down the optimization). 
+                    # """
+            
+        
+        
+            'x_centers':  x_Cent, # None
+            
+                    # """
+                    # Number of x-positions to use when determining center points for
+                    # template groupings. If None, this will be determined automatically
+                    # by finding peaks in channel density. For 2D array type probes, we
+                    # recommend specifying this so that centers are placed every few
+                    # hundred microns.
+                    # """
+            
+        
+            
+            ### POSTPROCESSING
+            'duplicate_spike_ms': 0.25, #
+            
+                    # """
+                    # Time in ms for which subsequent spikes from the same cluster are
+                    # assumed to be artifacts. A value of 0 disables this step.
+        
+                    # NOTE: this was formerly handled by `duplicate_spike_bins`, which has
+                    # been deprecated. The new default of 0.25ms is equivalent to the old
+                    # default of 7 bins for a 30kHz sampling rate.
+                    # """
+        
+            }
  
+        from kilosort import run_kilosort
+        
+        # Create the folder for the results
+        os.chdir(basedir_out)
+        reuslts_dir = f'./Kilo_out_{it}'
+        create_directory(reuslts_dir)
+        
+        #The first two channels are of calibration...
+        # bad_ch = [0,1]
+        bad_ch = []
+        
+        
+        
+        
+        '''
+        kilosort.run_kilosort.run_kilosort(settings, probe=None, probe_name=None, filename=None, data_dir=None, 
+                                           file_object=None, results_dir=None, data_dtype=None, do_CAR=True, 
+                                           invert_sign=False, device=None, progress_bar=None, save_extra_vars=False, 
+                                           clear_cache=False, save_preprocessed_copy=False, bad_channels=None, 
+                                           shank_idx=None, verbose_console=False, verbose_log=False)
+        
+        '''
+        
+        # probe = load_probe(Probe_path)
+        # probe = io.load_probe(probe_path)
+        
+        #%
+        ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
+            run_kilosort(
+                settings=MAIN_SETTINGS,
+                probe= probe,
+                filename = file_path_bin,
+                results_dir = reuslts_dir,
+                data_dtype= 'float32',
+                bad_channels=bad_ch,
+                
+                device  = torch.device('cuda'),
+                save_preprocessed_copy=False
+                )
+        # 
+        
+        # ---------- POST-PROCESSING ----------
+        '''
+        After sorting our data, we need to load the results and determine where the labels need to be saved..
+        
+        This will also load Kilosort4’s default labels. For this tutorial we’ll use those as a starting point, requiring that units satisfy the old criteria and the new criteria.
+        You could also just ignore the old labels and only use your own.
+        
+        [2] Some examples of other criteria you might want to use would be only labeling units ‘good’ if they have a firing rate above 1Hz and a contamination rate below 0.2. 
+        Whatever criteria you want to use, the process is the same: create a boolean array with shape (n_clusters,) that is True if the criteria is met, and False otherwise.
+        
+        
+        [3] Another example would be to only assign “good” to units with a presence ratio above some fraction, say 0.5. This will restrict the “good” label to units that are detected for at least half of the recording.
 
-    'highpass_cutoff': 300, #
-    
-            # """
-            # Critical frequency for highpass Butterworth filter applied to data.
-            # """
-  
+            This involves binning the data into large chunks to determine which periods of time each unit is active during. We want the bins to be large enough to not penalize units with low firing rates, 
+            but still small enough to capture periods when a unit is not detected. We recommend setting the number of bins such that each bin is around 5 minutes as a starting point.
+        
+        '''
+        
+        
+        #%
+        # cluster_labels = np.unique(clu)  # integer label for each cluster
+        # fs = ops['fs']                   # sampling rate
+        # # Option 1: Use existing labels as a starting point.
+        # #           KS4 assigns "good" where is_ref is True, and "mua" otherwise.
+        # label_good = is_ref.copy()
+        
+        
+         
+        # # [2]
+        # contam_good = est_contam_rate < 0.5   # this already has shape (n_clusters,)
+        # fr_good = np.zeros(cluster_labels.size, dtype=bool)
+        # for i, c in enumerate(cluster_labels):
+        #     # Get all spikes assigned to this cluster
+        #     spikes = st[clu == c]
+        #     # Compute est. firing rate using your preferred method.
+        #     # Note that this formula will not work well for units that drop in and out.
+        #     fr = spikes.size / (spikes.max()/fs - spikes.min()/fs)
+        #     if fr >= 1:
+        #         fr_good[i] = True
+        
+        # # Update labels, requiring that all criteria hold for each cluster.
+        # label_good = np.logical_and(label_good, contam_good, fr_good)
 
-    'binning_depth': 0, # 5   #########
-    
-            # """
-            # For drift correction, vertical bin size in microns used for
-            # 2D histogram.
-            # """
-   
-
-    'sig_interp': 20, #
-    
-            # """
-            # Approximate spatial smoothness scale in units of microns.
-            # """
- 
-
-    'drift_smoothing': [0.5, 0.5, 0.5],
-    
-            # """
-            # Amount of gaussian smoothing to apply to the spatiotemporal drift
-            # estimation, for correlation, time (units of registration blocks),
-            # and y (units of batches) axes. The y smoothing has no effect
-            # for `nblocks = 1`. Adjusting smoothing for the correlation axis
-            # is not recommended.
-            # """
- 
+        
 
 
-    ### SPIKE DETECTION
-    # NOTE: if left as None, will be set to `int(20 * settings['nt']/61)`
-    'nt0min': int(nt_min_s * samplingRate),
-    
-            # """
-            # Sample index for aligning waveforms, so that their minimum 
-            # or maximum value happens here. Defaults to 
-            # `int(20 * settings['nt']/61)`.
-            # """
-    
-    'dmin': 60, # None prev #################
-    
-            # """
-            # Vertical spacing of template centers used for spike detection,
-            # in microns. Determined automatically by default.
-            # """
-  
 
-    'dminx': 60, # 32 prev ##############
+        # # [3]
+
+        # #         # Formula adapted from https://github.com/AllenInstitute/ecephys_spike_sorting/
+        
+        # # def presence_ratio(spike_train, num_bins, min_time, max_time, min_spike_pct=0.05):
+        # #     h, b = np.histogram(spike_train, np.linspace(min_time, max_time, num_bins))
+        # #     min_spikes = h.mean()*min_spike_pct
+        
+        # #     # NOTE: Allen Institute formula leaves off the -1 to force the ratio to
+        # #     #       never reach 1.0. We've included it here because without it the ratio
+        # #     #       is biased too much for a small number of bins.
+        # #     return np.sum(h > min_spikes) / (num_bins - 1)
+        
+        # # # Compute presence ratio for each cluster
+        # # presence = np.zeros(cluster_labels.size)
+        # # min_time = st.min()
+        # # max_time = st.max()
+        # # for i, c in enumerate(cluster_labels):
+        # #     spikes = st[clu == c]
+        # #     presence[i] = presence_ratio(spikes, 10, min_time, max_time)
+        
+        # # presence_good = presence >= 0.5
+        # # # Update labels with the additional criteria.
+        # # label_good = np.logical_and(label_good, presence_good)
+                
+        
+        
+        #         # Identify the integer labels of the "good" clusters
+        # good_cluster_labels = cluster_labels[label_good]
+        
+        # # Create a dictionary to store spike times for each good unit
+        # good_unit_spike_times = {}
+        
+        # # Loop through each "good" cluster label
+        # for c in good_cluster_labels:
+        #     # Find all spike times (`st`) corresponding to the current cluster label (`c`)
+        #     spikes_for_unit = st[clu == c]
+            
+        #     # Store the spike times in the dictionary
+        #     good_unit_spike_times[c] = spikes_for_unit
+                
+        
+        #         # Step 2: Get the x and y coordinates for these peak channels
+        # x_coords = ops['xpos']
+        # y_coords = ops['ypos']
+        
+        # # Step 3: Use the label_good array to filter for only the good units
+        # good_unit_x_locs = x_coords[label_good]
+        # good_unit_y_locs = y_coords[label_good]
+        
+        # # You can also combine these into a single array for easier handling
+        # good_unit_locations = np.stack([good_unit_x_locs, good_unit_y_locs], axis=1)
+        
+        # Position_complete.append(good_unit_locations)
+        # Number_of_units.append(len(good_cluster_labels))
+        # Raster_complete.append(good_unit_spike_times)
+        it = it+1
+        
+    
+    #     ## SAVE THE RASTER AND UNIT POSITION VALUES
+        
+        
+        
+        
+        
+        
+    #     ## SUMMARY MATRICIES: account for estimated false positives and false negatives for each unit.
+    #     ## Ref: doi: 10.1523/JNEUROSCI.0971-11.2011.
+        
+        
+        
+    #     ## POPULATION LEVEL QUALITY METRIC: FDR
+    #     ## Ref: doi: https://doi.org/10.1101/2023.12.21.572882.
+        
+        
+        
+    #     ##### EXPORT
+        
+    #     # ## Investigate the nature of the w_rs variable.
+    #     # w_rs = sw.plot_rasters(curated_sorting) ## Hopefully loads into the variable the raster informations
+        
+        
+    #     # the export process
+    #     # export_report(sorting_analyzer=
+    #     # sorting_MS5_curated, output_folder=basedir_out)
+    
+    
     
         
-            # """
-            # Horizontal spacing of template centers used for spike detection,
-            # in microns. The default 32um should work well for Neuropixels 1 and
-            # Neuropixels 2 probes. For other probe geometries, try setting this 
-            # to the median lateral distance between contacts to start.
-            # """
-   
-
-    'min_template_size': 10, # Could be 20 seeing the electrode size
-    
-            # """
-            # Standard deviation of the smallest, spatial envelope Gaussian used
-            # for universal templates.
-            # """
- 
-
-    'template_sizes': 5, #
-    
-            # """
-            # Number of sizes for universal spike templates (multiples of the
-            # min_template_size).
-            # """
-    
-
-    'nearest_chans': 10, #
-    
-            # """
-            # Number of nearest channels to consider when finding local maxima
-            # during spike detection.
-            # """
-    
-
-    'nearest_templates': 100, #
-    
-            # """
-            # Number of nearest spike template locations to consider when finding
-            # local maxima during spike detection.
-            # """
-    
-
-    'max_channel_distance': 32, #
-    
-            # """
-            # Templates farther away than this from their nearest channel will
-            # not be used. Also limits distance between compared channels during
-            # clustering.
-            # """
-
-    'templates_from_data': True, #
-    
-            # """
-            # Indicates whether spike shapes used in universal templates should be 
-            # estimated from the data or loaded from the predefined templates.
-            # """
-   
-
-    'n_templates': 6, #
-    
-            # """
-            # Number of single-channel templates to use for the universal
-            # templates (only used if templates_from_data is True).
-            # """
-   
-
-    'n_pcs': 6, #
-    
-            # """
-            # Number of single-channel PCs to use for extracting spike features
-            # (only used if templates_from_data is True).
-            # """
-    
-
-    'Th_single_ch': 6, #
+     
+     
+     
+     
+     
+     
     
     
-            # """
-            # For single channel threshold crossings to compute universal-
-            # templates. In units of whitened data standard deviations. 
-            # """
+    # # sorting_MS5_curated.save_as(folder="Sorting_analyzer") # we shold get the spatial position of units
     
-
-
-    ### CLUSTERING
-    'acg_threshold':0.2, #
     
-            # """
-            # Fraction of refractory period violations that are allowed in the ACG 
-            # compared to baseline; used to assign "good" units. 
-            # """
+    # os.chdir(basedir_out)
+    # # Save the first array to 'data1.csv'
+    # np.savetxt(f'Raster_array_KS_th{Th_learned}_{Th_universal}_{Th_single_ch}.csv', np.vstack(Raster_complete), delimiter=',')
     
-
-    'ccg_threshold': 0.25, #
-    
-            # """
-            # Fraction of refractory period violations that are allowed in the CCG
-            # compared to baseline; used to perform splits and merges.
-            # """
-
-    
-
-    'cluster_downsampling': 20,#
-    
-            # """
-            # Inverse fraction of nodes used as landmarks during clustering
-            # (can be 1, but that slows down the optimization). 
-            # """
-    
-
-
-    'x_centers':  x_Cent, # None
-    
-            # """
-            # Number of x-positions to use when determining center points for
-            # template groupings. If None, this will be determined automatically
-            # by finding peaks in channel density. For 2D array type probes, we
-            # recommend specifying this so that centers are placed every few
-            # hundred microns.
-            # """
-    
-
-    
-    ### POSTPROCESSING
-    'duplicate_spike_ms': 0.25, #
-    
-            # """
-            # Time in ms for which subsequent spikes from the same cluster are
-            # assumed to be artifacts. A value of 0 disables this step.
-
-            # NOTE: this was formerly handled by `duplicate_spike_bins`, which has
-            # been deprecated. The new default of 0.25ms is equivalent to the old
-            # default of 7 bins for a 30kHz sampling rate.
-            # """
-
-    }
- 
-from kilosort import run_kilosort
-
-# Create the folder for the results
-os.chdir(fileDirectory)
-reuslts_dir = './Kilo_out'
-create_directory(reuslts_dir)
-
-#The first two channels are of calibration...
-# bad_ch = [0,1]
-bad_ch = []
-
-
-
-
-'''
-kilosort.run_kilosort.run_kilosort(settings, probe=None, probe_name=None, filename=None, data_dir=None, 
-                                   file_object=None, results_dir=None, data_dtype=None, do_CAR=True, 
-                                   invert_sign=False, device=None, progress_bar=None, save_extra_vars=False, 
-                                   clear_cache=False, save_preprocessed_copy=False, bad_channels=None, 
-                                   shank_idx=None, verbose_console=False, verbose_log=False)
-
-'''
-
-probe = load_probe(Probe_path)
-# probe = io.load_probe(probe_path)
-
-#%
-ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
-    run_kilosort(
-        settings=MAIN_SETTINGS,
-        probe= probe,
-        filename = file_path_bin,
-        results_dir = reuslts_dir,
-        data_dtype= 'int16',
-        bad_channels=bad_ch,
-        
-        device  = torch.device('cpu'),
-        save_preprocessed_copy=True
-        )
-# 
-
-# ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
-#     run_kilosort(
-#         settings=MAIN_SETTINGS,
-#         probe= probe,
-#         filename = filename,
-#         results_dir = reuslts_dir,
-#         data_dtype= 'int16',
-#         bad_channels=bad_ch,
-        
-#         device  = torch.device('cpu'),
-#         save_preprocessed_copy=True
-#         )
-
-
+    # # Save the second array to 'data2.csv'
+    # np.savetxt(f'Unit_Location_KS_th{Th_learned}_{Th_universal}_{Th_single_ch}.csv', np.vstack(Position_complete), delimiter=',')
 
 
 
