@@ -1,23 +1,4 @@
- -*- coding: utf-8 -*-
-# """
-# Created on Wed Aug  6 16:52:43 2025
 
-# @author: l.collo
-# """
-
-# # -*- coding: utf-8 -*-
-# """
-# Created on Tue May 27 11:43:28 2025
-
-# @author: Admin
-# """
-
-# # -*- coding: utf-8 -*-
-# """
-# Created on Fri May  9 17:37:31 2025
-
-# @authors:leonardo.dellamea; francesco.mainardi
-# """
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -172,11 +153,11 @@ def GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames):
             data[chIdx] = np.array(np.random.normal(dataMean, dataStdDev, numFrames),
                                    dtype=np.int16)
 
-
-
+# Clear the workspace
+# %reset -f
 # ------------------------ SAVING RECORDING IN BATCHES ------------------------
 
-wellID_array = ['Well_A2','Well_A3','Well_B1','Well_B2'] #change well 
+wellID_array = ['Well_A1'] #change well 
 # 'Well_A1','Well_A2','Well_A3','Well_B1','Well_B2','Well_B3'
 
 
@@ -201,107 +182,125 @@ for wellID in wellID_array:
     
     file_path_row= Path(str(fileDirectory + fileName))
     
-    # useSyntheticNoise = True
+    useSyntheticNoise = True
     
-    # total_sec =500
-    # Batch_size =100
+    total_sec =500
+    Batch_size =100
     
-    # n_b = int(total_sec/Batch_size)
+    n_b = int(total_sec/Batch_size)
     
-    # for j in range(0,n_b) :
-    #     dataStartPositionSec = j*Batch_size
-    #     dataDurationSec = Batch_size
+    for j in range(0,n_b) :
+        dataStartPositionSec = j*Batch_size
+        dataDurationSec = Batch_size
         
-    #     print('Start sec',dataStartPositionSec)
-    #     print('Finish sec',dataStartPositionSec + dataDurationSec)
-        
-        
-        
-    #     '''
-    #     First 2 channels are used for calibration... Disregard them
+        print('Start sec',dataStartPositionSec)
+        print('Finish sec',dataStartPositionSec + dataDurationSec)
         
         
         
-    #     '''
+        '''
+        First 2 channels are used for calibration... Disregard them
+        
+        
+        
+        '''
         
       
         
         
         
-    #     '''
-    #     Extraction
+        '''
+        Extraction
         
-    #     '''
+        '''
         
-    #     with h5py.File(file_path_row, 'r') as file:
+        with h5py.File(file_path_row, 'r') as file:
         
-    #         # collect experiment information
+            # collect experiment information
             
-    #         samplingRate = file.attrs['SamplingRate']
-    #         chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+            samplingRate = file.attrs['SamplingRate']
+            chIdxs = np.array(file[wellID + '/StoredChIdxs'])
             
-    #         # convert the requested time interval from seconds to frames
-    #         startFrame = int(dataStartPositionSec * samplingRate)
-    #         numFrames = int(dataDurationSec * samplingRate)
-            
-            
-    #         # Variables for covertion from digital to analog
-            
-    #         minDigitalValue = file.attrs['MinDigitalValue']
-    #         maxDigitalValue = file.attrs['MaxDigitalValue'] 
-    #         minAnalogValue = file.attrs['MinAnalogValue'] 
-    #         maxAnalogValue = file.attrs['MaxAnalogValue'] 
-            
-    #         ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
-    #         OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
+            # convert the requested time interval from seconds to frames
+            startFrame = int(dataStartPositionSec * samplingRate)
+            numFrames = int(dataDurationSec * samplingRate)
             
             
+            # Variables for covertion from digital to analog
+            
+            minDigitalValue = file.attrs['MinDigitalValue']
+            maxDigitalValue = file.attrs['MaxDigitalValue'] 
+            minAnalogValue = file.attrs['MinAnalogValue'] 
+            maxAnalogValue = file.attrs['MaxAnalogValue'] 
+            
+            ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+            OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
             
             
-    #         # initialize an empty (fill with zeros) data collection
-    #         data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
-    #         # fill the data collection with Gaussian noise if requested
-    #         if useSyntheticNoise:
-    #                 GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
-    #         # fill the data collection with the decoded event based sparse raw data
-    #         DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
+            
+            
+            # initialize an empty (fill with zeros) data collection
+            data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
+            # fill the data collection with Gaussian noise if requested
+            if useSyntheticNoise:
+                    GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
+            # fill the data collection with the decoded event based sparse raw data
+            DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
         
         
-    #     data_matrix = np.array(list(data.values()), dtype=np.int16)
-    #     data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
-    #     # for s in range(data_matrix.shape[0]):
+        data_matrix = np.array(list(data.values()), dtype=np.int16)
+        data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
+        # for s in range(data_matrix.shape[0]):
             
-    #     #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
+        #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
         
-    #     '''
-    #     Construct the RASTER matrix used in Spike interface.
+        '''
+        Construct the RASTER matrix used in Spike interface.
         
-    #     '''
-    #     file_path= basedir_out + f'\Data{j}.bin'
-    #     recording = se.NumpyRecording(data_matrix.T, samplingRate)
-    #     si.write_binary_recording(recording, file_path, dtype=np.float32)
-    #     Number_electrodes =  recording.get_num_channels()
-    #     # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
-    #     # print(f"Traces dtype: {recording.get_dtype()}")
+        '''
+        file_path= basedir_out + f'\Data{j}.bin'
+        recording = se.NumpyRecording(data_matrix.T, samplingRate)
+        si.write_binary_recording(recording, file_path, dtype=np.float32)
+        Number_electrodes =  recording.get_num_channels()
+        # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
+        # print(f"Traces dtype: {recording.get_dtype()}")
         
-    #     # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
-    #     # # print(recording.get_num_frames(), recording.get_num_channels())
-    #     # print(recording.get_num_frames(), recording.get_num_channels())
+        # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
+        # # print(recording.get_num_frames(), recording.get_num_channels())
+        # print(recording.get_num_frames(), recording.get_num_channels())
         
-    #     # %matplotlib
-    #     # PLOT TRACES
-    #     timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
-    #     plt.title('Saved time series')
-    #     plt.show()
+        # %matplotlib
+        # PLOT TRACES
+        # timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
+        # plt.title('Saved time series')
+        # plt.show()
       
-    #     del data_matrix
-    #     del recording
+        del data_matrix
+        del recording
     
     
     
     
     
+    # %reset -f
     
+    # variables
+    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
+    fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
+    
+    # Create the base output directory with the wellID embedded
+    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+    
+    # Check if the directory exists and create it if it doesn't
+    if not os.path.exists(basedir_out):
+        os.makedirs(basedir_out)
+        print(f"Created directory: {basedir_out}")
+    else:
+        print(f"Directory already exists: {basedir_out}")
+    
+    
+    
+    file_path_row= Path(str(fileDirectory + fileName))
       
     # if __name__ == '__main__':
     
@@ -681,21 +680,21 @@ for wellID in wellID_array:
     
     # '''
     
-    
+        detect_threshold = 6
     #------------- Run core sorter -------------
     
         sorting_parameters2 = ms5.Scheme2SortingParameters(
             phase1_detect_channel_radius=150,
             detect_channel_radius=60,
             training_duration_sec=50,
-            phase1_detect_threshold=5.0,
+            phase1_detect_threshold=detect_threshold,
             phase1_detect_time_radius_msec=1.5,
             detect_time_radius_msec=0.5,
             phase1_npca_per_channel=3,
             phase1_npca_per_subdivision=10,
             phase1_pairwise_merge_step=False,
             detect_sign=0,
-            detect_threshold=5.0,
+            detect_threshold=detect_threshold,
             snippet_T1=int(1*(samplingRate/1000)),
             snippet_T2=int(2*(samplingRate/1000)),
             snippet_mask_radius=80,
@@ -983,11 +982,12 @@ for wellID in wellID_array:
     
     os.chdir(basedir_out)
     # Save the first array to 'data1.csv'
-    np.savetxt('Raster_array.csv', np.vstack(Raster_complete), delimiter=',')
+    np.savetxt(f'Raster_array_{detect_threshold}.csv', np.vstack(Raster_complete), delimiter=',')
     
     # Save the second array to 'data2.csv'
-    np.savetxt('Unit_Location.csv', np.vstack(Position_complete), delimiter=',')
+    np.savetxt(f'Unit_Location{detect_threshold}.csv', np.vstack(Position_complete), delimiter=',')
     
+
 
 
 
