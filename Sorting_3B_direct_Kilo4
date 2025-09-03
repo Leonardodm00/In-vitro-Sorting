@@ -404,7 +404,7 @@ for wellID in wellID_array:
     Number_of_units = []
     # -------------------- MAIN LOOP ----------------------
     it = 0
-    for set_ch in Channel_Idx: #!!!!!!!!!!!!!!!!!!!!
+    for set_ch in Channel_Idx: 
         print('NEW ITERATION: {}'.format(it))
         print('Channel used:')
         print(set_ch)
@@ -429,6 +429,8 @@ for wellID in wellID_array:
         
         
         
+        # recording_list = [recc1, recc2,recc3,recc4]
+        
         recording_list = [recc1]
         # recording_list = [recc1, recc2,recc3,recc4,recc5]
         full_rec = si.concatenate_recordings(recording_list)
@@ -441,6 +443,10 @@ for wellID in wellID_array:
         del recc3
         del recc4
         del recc5
+        
+
+                
+        
       
         Num_channels = len(set_ch)
         
@@ -483,48 +489,35 @@ for wellID in wellID_array:
         print(probe)
 
         
-       
+     
+        # -------------------- CREATE KILOSORT RECORDING ----------------------
+        total_frames = full_rec.get_total_samples()
+               
+        # NOTE: Data will be saved as np.int16 by default since that is the standard
+        #       for ephys data. If you need a different data type for whatever reason
+        #       such as `np.uint16`, be sure to update this.
+        dtype = np.float32
+        filename, N, c, s, fs, probe_path = io.spikeinterface_to_binary(
+            full_rec, basedir_out, data_name='Fulldata_kilo.bin', dtype=dtype,
+            chunksize=total_frames, export_probe=False, probe_name='probe.prb'
+            )
+                     
+                        
+             
         
-        # Plot the probe
-        # plot_probe(probe_2d)
+     
         
-        #------------- Filter the data not neededd in kilosort-------------
+     
         
-        # # timeseries_plot = sw.plot_traces(full_rec,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
+     
         
-        # # plt.title('RAW')
-        # # plt.show()
+     
         
+     
         
-        # recording_CAR = spre.common_reference(full_rec,operator = 'average')
+     
         
-        
-        # # timeseries_plot = sw.plot_traces(recording_CAR,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
-        # # plt.title('CAR')
-        
-        # # plt.show()
-        
-        
-        # recording_BUT = spre.highpass_filter(recording_CAR, freq_min=300.0, margin_ms=2.0)
-        
-        # # timeseries_plot = sw.plot_traces(recording_BUT,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
-        # # plt.title('BUTTERWORTH')
-        
-        # # plt.show()
-        
-        # ## Use local whitening, given that the pitch between electrodes is 60 um set the radius at 240 um that correspond to 4 ch
-        # recording_WT = spre.whiten(recording_BUT.set_probe(probe_2d), mode = 'local',radius_um=240.0)
-        
-        
-        # # timeseries_plot = sw.plot_traces(recording_WT,channel_ids = np.arange(3,10) ,time_range=(1,1.2))
-        # # plt.title('WHITENED')
-        
-        # # plt.show()
-        
-        
-        # dataDurationSec = recording_WT.get_duration()
-        
-        
+     
         
         
         
@@ -695,7 +688,7 @@ for wellID in wellID_array:
 
 
             
-        full_rec = full_rec.remove_channels([0,1])
+        # full_rec = full_rec.remove_channels([0,1])
         
         # # timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
         # # Check the extraction
@@ -719,7 +712,7 @@ for wellID in wellID_array:
         
         MAIN_SETTINGS = {
             # NOTE: n_chan_bin must be specified by user when running through API
-            'n_chan_bin': Number_electrodes,
+            'n_chan_bin': Num_channels,
             
                     # """
                     # Total number of channels in the binary file, which may be different
@@ -1029,6 +1022,15 @@ for wellID in wellID_array:
  
         from kilosort import run_kilosort
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
         # Create the folder for the results
         os.chdir(basedir_out)
         reuslts_dir = f'./Kilo_out_{it}'
@@ -1050,15 +1052,12 @@ for wellID in wellID_array:
         
         '''
         
-        # probe = load_probe(Probe_path)
-        # probe = io.load_probe(probe_path)
-        
-        #%
-        ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
-            run_kilosort(
+
+        ops, st, clu, tF, Wall, similar_templates, is_ref, \
+            est_contam_rate, kept_spikes = run_kilosort(
                 settings=MAIN_SETTINGS,
-                probe= probe,
-                filename = file_path_bin,
+                probe=probe,
+                filename=filename,
                 results_dir = reuslts_dir,
                 data_dtype= 'float32',
                 bad_channels=bad_ch,
@@ -1066,7 +1065,20 @@ for wellID in wellID_array:
                 device  = torch.device('cuda'),
                 save_preprocessed_copy=False
                 )
-        # 
+        #%
+        # ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate, kept_spikes = \
+        #     run_kilosort(
+        #         settings=MAIN_SETTINGS,
+        #         probe= probe,
+        #         filename = file_path_bin,
+        #         results_dir = reuslts_dir,
+        #         data_dtype= 'float32',
+        #         bad_channels=bad_ch,
+                
+        #         device  = torch.device('cuda'),
+        #         save_preprocessed_copy=False
+        #         )
+        # # 
         
         # ---------- POST-PROCESSING ----------
         '''
