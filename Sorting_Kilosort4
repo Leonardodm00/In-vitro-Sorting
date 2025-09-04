@@ -1,4 +1,5 @@
 
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -164,119 +165,119 @@ wellID_array = ['Well_A1'] #change well
 for wellID in wellID_array:
 
 
-    # variables
-    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
-    fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
+#     # variables
+#     fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
+#     fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
     
-    # Create the base output directory with the wellID embedded
-    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+#     # Create the base output directory with the wellID embedded
+#     basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
     
-    # Check if the directory exists and create it if it doesn't
-    if not os.path.exists(basedir_out):
-        os.makedirs(basedir_out)
-        print(f"Created directory: {basedir_out}")
-    else:
-        print(f"Directory already exists: {basedir_out}")
+#     # Check if the directory exists and create it if it doesn't
+#     if not os.path.exists(basedir_out):
+#         os.makedirs(basedir_out)
+#         print(f"Created directory: {basedir_out}")
+#     else:
+#         print(f"Directory already exists: {basedir_out}")
     
     
     
-    file_path_row= Path(str(fileDirectory + fileName))
+#     file_path_row= Path(str(fileDirectory + fileName))
     
-    useSyntheticNoise = True
+#     useSyntheticNoise = True
     
-    total_sec =500
-    Batch_size =100
+#     total_sec =600
+#     Batch_size =100
     
-    n_b = int(total_sec/Batch_size)
+#     n_b = int(total_sec/Batch_size)
     
-    for j in range(0,n_b) :
-        dataStartPositionSec = j*Batch_size
-        dataDurationSec = Batch_size
+#     for j in range(0,n_b) :
+#         dataStartPositionSec = j*Batch_size
+#         dataDurationSec = Batch_size
         
-        print('Start sec',dataStartPositionSec)
-        print('Finish sec',dataStartPositionSec + dataDurationSec)
-        
-        
-        
-        '''
-        First 2 channels are used for calibration... Disregard them
+#         print('Start sec',dataStartPositionSec)
+#         print('Finish sec',dataStartPositionSec + dataDurationSec)
         
         
         
-        '''
+#         '''
+#         First 2 channels are used for calibration... Disregard them
+        
+        
+        
+#         '''
         
       
         
         
         
-        '''
-        Extraction
+#         '''
+#         Extraction
         
-        '''
+#         '''
         
-        with h5py.File(file_path_row, 'r') as file:
+#         with h5py.File(file_path_row, 'r') as file:
         
-            # collect experiment information
+#             # collect experiment information
             
-            samplingRate = file.attrs['SamplingRate']
-            chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+#             samplingRate = file.attrs['SamplingRate']
+#             chIdxs = np.array(file[wellID + '/StoredChIdxs'])
             
-            # convert the requested time interval from seconds to frames
-            startFrame = int(dataStartPositionSec * samplingRate)
-            numFrames = int(dataDurationSec * samplingRate)
-            
-            
-            # Variables for covertion from digital to analog
-            
-            minDigitalValue = file.attrs['MinDigitalValue']
-            maxDigitalValue = file.attrs['MaxDigitalValue'] 
-            minAnalogValue = file.attrs['MinAnalogValue'] 
-            maxAnalogValue = file.attrs['MaxAnalogValue'] 
-            
-            ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
-            OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
+#             # convert the requested time interval from seconds to frames
+#             startFrame = int(dataStartPositionSec * samplingRate)
+#             numFrames = int(dataDurationSec * samplingRate)
             
             
+#             # Variables for covertion from digital to analog
+            
+#             minDigitalValue = file.attrs['MinDigitalValue']
+#             maxDigitalValue = file.attrs['MaxDigitalValue'] 
+#             minAnalogValue = file.attrs['MinAnalogValue'] 
+#             maxAnalogValue = file.attrs['MaxAnalogValue'] 
+            
+#             ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+#             OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
             
             
-            # initialize an empty (fill with zeros) data collection
-            data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
-            # fill the data collection with Gaussian noise if requested
-            if useSyntheticNoise:
-                    GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
-            # fill the data collection with the decoded event based sparse raw data
-            DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
+            
+            
+#             # initialize an empty (fill with zeros) data collection
+#             data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
+#             # fill the data collection with Gaussian noise if requested
+#             if useSyntheticNoise:
+#                     GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
+#             # fill the data collection with the decoded event based sparse raw data
+#             DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
         
         
-        data_matrix = np.array(list(data.values()), dtype=np.int16)
-        data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
-        # for s in range(data_matrix.shape[0]):
+#         data_matrix = np.array(list(data.values()), dtype=np.int16)
+#         data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
+#         # for s in range(data_matrix.shape[0]):
             
-        #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
+#         #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
         
-        '''
-        Construct the RASTER matrix used in Spike interface.
+#         '''
+#         Construct the RASTER matrix used in Spike interface.
         
-        '''
-        file_path= basedir_out + f'\Data{j}.bin'
-        recording = se.NumpyRecording(data_matrix.T, samplingRate)
-        si.write_binary_recording(recording, file_path, dtype=np.float32)
-        Number_electrodes =  recording.get_num_channels()
-        # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
-        # print(f"Traces dtype: {recording.get_dtype()}")
+#         '''
+#         file_path= basedir_out + f'\Data{j}.bin'
+#         recording = se.NumpyRecording(data_matrix.T, samplingRate)
+#         si.write_binary_recording(recording, file_path, dtype=np.float32)
+#         Number_electrodes =  recording.get_num_channels()
+#         # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
+#         # print(f"Traces dtype: {recording.get_dtype()}")
         
-        # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
-        # # print(recording.get_num_frames(), recording.get_num_channels())
-        # print(recording.get_num_frames(), recording.get_num_channels())
+#         # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
+#         # # print(recording.get_num_frames(), recording.get_num_channels())
+#         # print(recording.get_num_frames(), recording.get_num_channels())
         
-        # %matplotlib
-        # PLOT TRACES
-        # timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
-        # plt.title('Saved time series')
-        # plt.show()
+#         # %matplotlib
+#         # PLOT TRACES
+#         # timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
+#         # plt.title('Saved time series')
+#         # plt.show()
       
-        del data_matrix
-        del recording
+#         del data_matrix
+#         del recording
     
     
     
@@ -427,8 +428,18 @@ for wellID in wellID_array:
         
         
         
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data5.bin"
+        recc6 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
+        
+        
+        
+        
+        
+        # recording_list = [recc1, recc2,recc3,recc4,recc5,recc6]
+        
         # recording_list = [recc1]
-        recording_list = [recc1, recc2,recc3,recc4,recc5]
+        recording_list = [recc1, recc2]
         full_rec = si.concatenate_recordings(recording_list)
         # print(full_rec)
         full_rec = full_rec.select_channels(channel_ids=set_ch)
@@ -439,6 +450,7 @@ for wellID in wellID_array:
         del recc3
         del recc4
         del recc5
+        del recc6
       
         Num_channels = len(set_ch)
         
@@ -454,9 +466,9 @@ for wellID in wellID_array:
         
         probe_2d.set_device_channel_indices(Probe_range)
     
-        
+        print(probe_2d)
        
-        
+        full_rec = full_rec.set_probe(probe_2d)
        
         
         # Plot the probe
@@ -507,8 +519,8 @@ for wellID in wellID_array:
 
         '''
 
-        print("kilosort4 params:")
-        pprint(ss.get_default_sorter_params('kilosort4'))
+        # print("kilosort4 params:")
+        # pprint(ss.get_default_sorter_params('kilosort4'))
 
 
         # Change parameters' value
@@ -518,7 +530,7 @@ for wellID in wellID_array:
         other_params = ss.get_default_sorter_params('kilosort4')
 
         ############# ORIGINAL
-        other_params['batch_size'] =  int(3 * samplingRate)   
+        other_params['batch_size'] =  int(5 * samplingRate)   
         other_params['binning_depth'] = 0
 
 
@@ -594,12 +606,12 @@ for wellID in wellID_array:
 
         #  Standard deviation of the smallest, spatial envelope Gaussian used
         #  for universal templates.
-        other_params['min_template_size'] = 25  # 25 um is the electrode witdh # 10
+        other_params['min_template_size'] = 10  # 25 um is the electrode witdh # 10
 
 
         # Number of sizes for universal spike templates (multiples of the
         # min_template_size).
-        other_params['template_sizes'] = 3
+        other_params['template_sizes'] = 5 #
 
         # Number of non-overlapping blocks for drift correction
         # (additional nblocks-1 blocks are created in the overlaps).
@@ -614,7 +626,7 @@ for wellID in wellID_array:
         # the amount of symmetric padding for filtering. The default represents 2ms + 1 bin
         # for a sampling rate of 30kHz. For a different sampling rate, you may want to adjust accordingly.
         # For example, nt = 81 would be the 2ms equivalent for 40kHz.
-        nt_ms = 2.5  # [ms]
+        nt_ms = 3  # [ms]
         nt_s = nt_ms / 1000  # [s]
         # nt_opt = int(nt_s * samplingRate) + 1
         other_params['nt'] = int(nt_s * samplingRate) + 1
@@ -634,9 +646,9 @@ for wellID in wellID_array:
         # To detect more units overall, it may help to reduce Th_universal. Try reducing each threshold by 1 or 2 at a time.
 
 
-        Th_learned = 8
-        Th_universal = 9
-        Th_single_ch = 6
+        Th_learned = 5
+        Th_universal = 5
+        Th_single_ch = 5
 
 
         # Spike detection threshold for learned templates.
@@ -663,13 +675,15 @@ for wellID in wellID_array:
         other_params['save_preprocessed_copy'] = True
         other_params['skip_kilosort_preprocessing'] = False
         other_params['keep_good_only'] = False
+        other_params[ 'torch_device'] =  torch.device('cuda')
+        other_params[ 'clear_cache'] = True
+        other_params[ 'progress_bar'] = True
+        
 
 
 
 
-
-            
-        full_rec = full_rec.remove_channels([0,1])
+       
         
         # # timeseries_plot = sw.plot_traces(recc1,channel_ids =np.arange(1),time_range=(2,2.01))
         # # Check the extraction
@@ -680,19 +694,19 @@ for wellID in wellID_array:
         
         
         
-        #%%
+        
         sorting_KS = ss.run_sorter(
-            sorter_name="kilosort4", recording=full_rec, output_folder="kilosort4_output", **other_params,remove_existing_folder = True)
+            sorter_name="kilosort4", recording=full_rec, **other_params,remove_existing_folder = True)
         print(sorting_KS)
     
         # --- analyzer ---
-        analyzer_string = f"analyzer{wellID}{it}"
+        analyzer_string = f"analyzerKS{wellID}{it}"
         
         # # Check if the folder exists and manually delete it
         # if os.path.exists(analyzer_string):
         #     shutil.rmtree(analyzer_string)
        
-        #%%
+        #
         analyzer = si.create_sorting_analyzer(sorting=sorting_KS , recording=full_rec.set_probe(probe_2d), format='binary_folder', folder=analyzer_string, overwrite=True)
         
         # core extensions
@@ -750,12 +764,12 @@ for wellID in wellID_array:
         
         
        
-        # ## After Lussac 
+        # # ## After Lussac 
         
         
-        # # COntrol the data format
-        # ext = analyzer.get_extension("spike_amplitudes")
-        # ext_data = ext.get_data()
+        # # # COntrol the data format
+        # # ext = analyzer.get_extension("spike_amplitudes")
+        # # ext_data = ext.get_data()
         
         
         # # Merge the proposed units
@@ -764,23 +778,23 @@ for wellID in wellID_array:
         #     curation_dict = {'removed_units':[],'merge_unit_groups':Lussac_merged,'manual_labels':[]}
             
             
-        #     sorting_MS5_SNR_merged = scur.apply_curation(analyzer, **curation_dict, censor_ms=None, new_id_strategy='take_first', merging_mode='hard', sparsity_overlap=0.75, verbose=False)
+        #     analyzer = scur.apply_curation(analyzer, **curation_dict, censor_ms=None, new_id_strategy='take_first', merging_mode='hard', sparsity_overlap=0.75, verbose=False)
         # else:
-        #     sorting_MS5_SNR_merged =   analyzer  
+        #     analyzer =   analyzer  
             
-        sorting_MS5_SNR_merged = analyzer
+        
         
         ##### In this section are filtered out the units whose MFR is out [1 250] range
         
         ## Compute firing rates
-        firing_rates = sqm.compute_firing_rates(sorting_MS5_SNR_merged)
+        firing_rates = sqm.compute_firing_rates(analyzer)
         FR = firing_rates.values()
         
         ## Get numpy array of the units' firing rate
         FR = np.array(list(FR))
         
         ## Get the idx of the units to keep
-        keep_mask = np.where((FR >= 1) & (FR <= 250))
+        keep_mask = np.where((FR >= 0.01) & (FR <= 250))
         # print(keep_mask)
         
         ## Get the kept units' id.
@@ -789,14 +803,14 @@ for wellID in wellID_array:
         # print(keep_unit_ids)
         
         ## Select units
-        sorting_MS5_curated = sorting_MS5_SNR_merged.select_units(keep_unit_ids)
+        analyzer_curated = analyzer.select_units(keep_unit_ids)
         
         
         
         # print(sorting_MS5_curated)
         
         
-        sw.plot_rasters(sorting_MS5_curated)
+        sw.plot_rasters(analyzer_curated)
         # plt.show()
         # sw.plot_unit_locations(sorting_MS5_curated, figsize=(4, 8))
         
@@ -805,7 +819,7 @@ for wellID in wellID_array:
     
         
         
-        Sorting_Object = sorting_MS5_curated.sorting
+        Sorting_Object = analyzer.sorting
         
        
         # --- Part 1: Construct the Raster Matrix ---
@@ -838,7 +852,7 @@ for wellID in wellID_array:
         # 2D or 3D locations.
         # We slice the result to get the first two columns (X and Y coordinates).
         # This code block looks good as it is.
-        Unit_Location2D = np.array(spost.compute_unit_locations(sorting_MS5_curated)[:,0:2])
+        Unit_Location2D = np.array(spost.compute_unit_locations(analyzer)[:,0:2])
         
         
         # Update unit number
