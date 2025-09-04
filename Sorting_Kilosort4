@@ -696,7 +696,7 @@ for wellID in wellID_array:
         
         
         sorting_KS = ss.run_sorter(
-            sorter_name="kilosort4", recording=full_rec, **other_params,remove_existing_folder = True)
+            sorter_name=f"kilosort4"{it}, recording=full_rec, **other_params,remove_existing_folder = True)
         print(sorting_KS)
     
         # --- analyzer ---
