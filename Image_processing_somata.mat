@@ -1,0 +1,214 @@
+
+clear all 
+close all
+clc
+output_folder = 'C:\Users\Admin\Desktop\Leonardo\LOW DATA\Well 1\Image analysis'
+Imag = imread("C:\Users\Admin\Desktop\Leonardo\LOW DATA\400 images\A1\NeuN_final.tif");
+
+I_green = Imag(:,:,2);
+
+% **CRITICAL STEP: Convert the image data type to uint8**
+% im2uint8 converts the image to the 8-bit unsigned integer type, 
+% scaling the data if it was float or converting directly if it was uint16.
+I_in = im2uint8(I_green);
+disp('Image successfully converted to uint8 data type.');
+
+% --- 2. Noise Smoothing (Median Filtering) ---
+% Median filtering is excellent for removing impulse noise 
+% while preserving edges, which is useful in segmentation.
+filter_size = [3 3]; 
+I_smooth = medfilt2(I_in, filter_size);
+disp(['Step 2: Applied Median filter with size = ', num2str(filter_size(1)), 'x', num2str(filter_size(2))]);
+
+
+% --- 3. Binarization (Otsu's Method) ---
+% Find the global threshold using Otsu's method
+level = graythresh(I_smooth); 
+
+% Create the binary mask. Assume cells are brighter (foreground).
+% If cells are dark on a light background, use ~imbinarize(...)
+BW_mask = imbinarize(I_smooth, level);
+disp('Step 3: Created binary mask using Otsu''s threshold.');
+
+
+% --- 4. Distance Transform (DT) ---
+% Calculate the Euclidean distance from every foreground pixel to the nearest background pixel.
+% Cell centers become bright peaks.
+D_map = bwdist(~BW_mask);
+disp('Step 4: Computed Distance Transform.');
+
+
+% --- 5. Topographic Inversion ---
+% Invert the distance map. The watershed algorithm finds catchment basins (minima).
+% By inverting, the cell centers become the deep, desired minima.
+D_inv = -D_map;
+disp('Step 5: Created Inverted Distance Map (Topographic Surface).');
+
+
+% --- 6. Visualization of Key Steps ---
+figure('Name', 'Watershed Pre-processing Pipeline');
+
+% Original Green Channel
+subplot(2, 2, 1);
+imshow(I_in);
+title('1. Original Green Channel (uint8)');
+
+% Binary Mask
+subplot(2, 2, 2);
+imshow(BW_mask);
+title('2. Binary Mask');
+
+% Distance Transform
+subplot(2, 2, 3);
+imshow(D_map, []); % Use [] to scale the display range automatically
+title('3. Distance Transform (Cell Centers are Peaks)');
+
+% Inverted Distance Transform (The Watershed Input)
+subplot(2, 2, 4);
+imshow(D_inv, []); % Use [] for display scaling
+title('4. Inverted Distance Map (Cell Centers are Minima)');
+
+disp('Pre-processing complete. The variable D_inv is ready for the Marker Generation stage.');
+
+
+
+
+% --- 3. Marker Generation (Creating the Seeds) ---
+
+% A. Foreground Markers: Use H-minima transform to suppress shallow minima (noise)
+% H_value: Controls the "depth" threshold for minima. Use a small value (e.g., 2)
+% to keep only the deepest, most significant minima (cell centers).
+H_value = 10; 
+D_mod = imhmin(D_inv, H_value,8);
+% figure()
+% imshow(D_mod)
+% title('Minima depth')
+
+
+
+% B. Find Regional Minima (the seed points) in the modified map
+L_fg_minima = imregionalmin(D_mod);
+% L_fg_minima is a binary image where white pixels are the seed points
+
+% C. Label the foreground markers
+% L_fg_markers will contain unique IDs (1, 2, 3...) for each cell seed
+L_fg_markers = bwlabel(L_fg_minima);
+disp(['Step 3: Identified ', num2str(max(L_fg_markers(:))), ' foreground markers.']);
+
+
+% D. Background Marker: Define the area we are SURE is background.
+% Use a structuring element (e.g., disk of radius 3) for morphological operations
+se = strel('disk', 3); 
+
+% The background is the complement of the mask (~BW_mask).
+% We dilate the foreground mask and then subtract it from the mask to find
+% the region we are *sure* is background, outside the boundaries.
+sure_bg = imdilate(BW_mask, se); 
+sure_bg = ~sure_bg; 
+
+% E. Combine Foreground and Background Markers into a single binary image.
+% This binary image marks all mandatory seed points (both foreground and background).
+% The background label matrix L_markers is removed to use the more robust method.
+markers_binary = L_fg_minima | sure_bg;
+
+disp('Marker generation complete: Binary foreground and background markers combined.');
+
+
+% --- 4. Final Watershed Segmentation ---
+
+% A. Impose Minima (The Fix for the Connectivity Error): 
+% Force the topographic map (D_inv) to have regional minima ONLY at the 
+% locations specified by the binary markers.
+D_watershed = imimposemin(D_inv, markers_binary);
+
+% B. Apply the watershed transform to the modified map with the fixed minima.
+% This single-argument syntax is the standard and most robust method for MCW.
+L_segmentation = watershed(D_watershed);
+
+% Extract the final boundary lines (where L_segmentation == 0)
+BW_boundaries = (L_segmentation == 0);
+
+% Overlay the boundaries on the original image
+I_segmented = I_in;
+I_segmented(BW_boundaries) = 255; % Set boundaries to white for visibility
+
+
+% --- 5. Visualization of Results ---
+
+figure('Name', 'Marker-Controlled Watershed Segmentation');
+
+subplot(2, 2, 1);
+imshow(I_in);
+title('1. Original Green Channel');
+
+subplot(2, 2, 2);
+imshow(L_fg_minima);
+title(['2. Foreground Markers (H-Minima = ', num2str(H_value), ')']);
+
+subplot(2, 2, 3);
+imshow(L_segmentation > 0); % Show the segmented regions (labels > 0)
+% Display the label matrix with colors (label2rgb)
+labeled_rgb = label2rgb(L_segmentation, 'jet', 'k', 'noshuffle');
+imshow(labeled_rgb);
+title('3. Final Labeled Regions');
+
+subplot(2, 2, 4);
+imshow(I_in);
+hold on;
+% Overlay the watershed boundary lines in red
+visboundaries(L_segmentation, 'Color', 'r');
+title('4. Final Segmentation Overlay');
+hold off;
+
+disp('Segmentation complete. Total cells detected:');
+disp(max(L_fg_markers(:)));
+
+% --- 5. Region Property Extraction (Cell Metrics) ---
+% The labels 0 (boundaries) and the background label must be excluded.
+% The relevant labels start from 1 up to the number of foreground markers.
+
+% L_fg_markers contains the number of actual cells detected (max label ID).
+num_cells = max(L_fg_markers(:)); 
+
+% 1. Use regionprops to gather properties for all labeled regions.
+% We specify L_segmentation as the label matrix.
+% 'Centroid' returns the [X, Y] center, and 'Area' returns the total pixel count.
+stats = regionprops(L_segmentation, 'Area', 'Centroid');
+
+% 2. Filtering Logic: The regionprops output (stats) contains all labels (1 to max(L_segmentation)). 
+% We iterate only up to the number of cells detected (num_cells), excluding the background.
+
+disp('--- Segmentation Results ---');
+fprintf('Total Cell Somas Detected: %d\n', num_cells);
+
+% Initialize a cell array to store the metrics for each cell.
+% Each element will contain: [Centroid_X, Centroid_Y, Equivalent_Radius, Area]
+cell_metrics = cell(num_cells, 1);
+
+for k = 1:num_cells
+    % stats(k) corresponds to the k-th cell soma (label k in L_segmentation)
+    
+    cell_area = stats(k).Area;
+    
+    % Calculate the equivalent radius R, assuming the Area (A) is that of a circle (A = pi * R^2).
+    % R = sqrt(A / pi)
+    equivalent_radius = sqrt(cell_area / pi);
+    
+    % Store the metrics: [Centroid X, Centroid Y, Radius, Area]
+    cell_metrics{k} = [stats(k).Centroid(1), stats(k).Centroid(2), equivalent_radius, cell_area];
+
+    fprintf('\nRegion %d (Cell ID %d):\n', k, k);
+    fprintf('  Centroid (X, Y): (%.2f, %.2f)\n', stats(k).Centroid(1), stats(k).Centroid(2));
+    fprintf('  Area (pixels): %d\n', cell_area);
+    fprintf('  Equivalent Radius (pixels): %.2f\n', equivalent_radius);
+end
+
+% Note: cell_metrics is a cell array where each cell holds a 1x4 vector: 
+% [Centroid X, Centroid Y, Equivalent Radius, Area]
+
+disp('Cell metrics (Centroid, Equivalent Radius, Area) retrieved and stored in cell_metrics.');
+
+cd(output_folder)
+
+% 3. Save the results to a .mat file for later analysis
+save('cell_soma_metrics.mat', 'cell_metrics');
