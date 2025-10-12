@@ -2,7 +2,8 @@
 clear all 
 close all
 clc
-output_folder = 'C:\Users\Admin\Desktop\Leonardo\LOW DATA\Well 1\Image analysis'
+output_folder = 'C:\Users\Admin\Desktop\Leonardo\LOW DATA\Well 1\Image analysis';
+
 Imag = imread("C:\Users\Admin\Desktop\Leonardo\LOW DATA\400 images\A1\NeuN_final.tif");
 
 I_green = Imag(:,:,2);
@@ -46,7 +47,7 @@ disp('Step 5: Created Inverted Distance Map (Topographic Surface).');
 
 
 % --- 6. Visualization of Key Steps ---
-figure('Name', 'Watershed Pre-processing Pipeline');
+fig1 = figure('Name', 'Watershed Pre-processing Pipeline');
 
 % Original Green Channel
 subplot(2, 2, 1);
@@ -135,7 +136,7 @@ I_segmented(BW_boundaries) = 255; % Set boundaries to white for visibility
 
 % --- 5. Visualization of Results ---
 
-figure('Name', 'Marker-Controlled Watershed Segmentation');
+fig2 = figure('Name', 'Marker-Controlled Watershed Segmentation');
 
 subplot(2, 2, 1);
 imshow(I_in);
@@ -146,9 +147,11 @@ imshow(L_fg_minima);
 title(['2. Foreground Markers (H-Minima = ', num2str(H_value), ')']);
 
 subplot(2, 2, 3);
-imshow(L_segmentation > 0); % Show the segmented regions (labels > 0)
+L_segmentation_plot = L_segmentation;
+L_segmentation_plot(L_segmentation_plot==1)=0;
+imshow(L_segmentation_plot > 0); % Show the segmented regions (labels > 0)
 % Display the label matrix with colors (label2rgb)
-labeled_rgb = label2rgb(L_segmentation, 'jet', 'k', 'noshuffle');
+labeled_rgb = label2rgb(L_segmentation_plot, 'jet', 'k', 'noshuffle');
 imshow(labeled_rgb);
 title('3. Final Labeled Regions');
 
@@ -212,3 +215,57 @@ cd(output_folder)
 
 % 3. Save the results to a .mat file for later analysis
 save('cell_soma_metrics.mat', 'cell_metrics');
+
+% =========================================================================
+% === NEW CODE BLOCK FOR SAVING SUBPLOTS AS SEPARATE SVG FILES ===
+% =========================================================================
+
+disp('Starting to save all subplots to separate SVG files...');
+
+% --- Figure 1: Watershed Pre-processing Pipeline ---
+fig_path = fullfile(output_folder, 'Pre_processing_');
+fig_name = {'Original_Green_Channel', 'Binary_Mask', 'Distance_Transform', 'Inverted_Distance_Map'};
+figure(fig1); % Make sure Figure 1 is the current figure
+h = findall(fig1, 'Type', 'Axes'); % Get all subplot axes in the figure
+h_rev = flipud(h); % Subplots are usually found in reverse order of creation.
+
+for i = 1:4
+    % Create a new, temporary figure with the same size as the subplot
+    temp_fig = figure('Visible', 'off'); 
+    temp_axes = copyobj(h_rev(i), temp_fig); % Copy the subplot axes to the new figure
+    
+    % Adjust the position in the new figure to fill the space
+    set(temp_axes, 'Position', [0.1 0.1 0.8 0.8]);
+    
+    % Save the temporary figure as an SVG
+    % The only change is 'svg' instead of 'png'
+    saveas(temp_fig, [fig_path, fig_name{i}, '.svg'], 'svg'); 
+    
+    close(temp_fig); % Close the temporary figure
+end
+
+% --- Figure 2: Marker-Controlled Watershed Segmentation ---
+fig_path = fullfile(output_folder, 'Segmentation_');
+fig_name = {'Original_Green_Channel_Segmentation', 'Foreground_Markers', 'Final_Labeled_Regions', 'Final_Segmentation_Overlay'};
+figure(fig2); % Make sure Figure 2 is the current figure
+h = findall(fig2, 'Type', 'Axes'); % Get all subplot axes in the figure
+h_rev = flipud(h); % Subplots are usually found in reverse order of creation.
+
+for i = 1:4
+    % Create a new, temporary figure with the same size as the subplot
+    temp_fig = figure('Visible', 'off'); 
+    temp_axes = copyobj(h_rev(i), temp_fig); % Copy the subplot axes to the new figure
+    
+    % Adjust the position in the new figure to fill the space
+    set(temp_axes, 'Position', [0.1 0.1 0.8 0.8]);
+    
+    % Save the temporary figure as an SVG
+    % The only change is 'svg' instead of 'png'
+    saveas(temp_fig, [fig_path, fig_name{i}, '.svg'], 'svg'); 
+    
+    close(temp_fig); % Close the temporary figure
+end
+
+disp('All 8 subplots have been successfully saved as separate SVG files in the output folder.');
+
+% =========================================================================
