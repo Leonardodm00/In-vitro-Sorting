@@ -1,5 +1,6 @@
 
 
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -185,7 +186,7 @@ for wellID in wellID_array:
     
     useSyntheticNoise = True
     
-    total_sec =500
+    total_sec =600
     Batch_size =100
     
     n_b = int(total_sec/Batch_size)
@@ -418,12 +419,15 @@ for wellID in wellID_array:
         file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data4.bin"
         recc5 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data5.bin"
+        recc6 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
+                                           num_channels=Number_electrodes)
         
         
         
         
         # recording_list = [recc1]
-        recording_list = [recc1, recc2,recc3,recc4,recc5]
+        recording_list = [recc1, recc2,recc3,recc4,recc5,recc6]
         full_rec = si.concatenate_recordings(recording_list)
         print(full_rec)
         full_rec = full_rec.select_channels(channel_ids=set_ch)
@@ -434,6 +438,7 @@ for wellID in wellID_array:
         del recc3
         del recc4
         del recc5
+        del recc6
       
         Num_channels = len(set_ch)
         
@@ -987,6 +992,5 @@ for wellID in wellID_array:
     
     # Save the second array to 'data2.csv'
     np.savetxt(f'Unit_Location{detect_threshold}_{wellID}.csv', np.vstack(Position_complete), delimiter=',')
-
 
 
