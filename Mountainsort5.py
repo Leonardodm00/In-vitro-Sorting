@@ -1,4 +1,5 @@
 
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -982,14 +983,10 @@ for wellID in wellID_array:
     
     os.chdir(basedir_out)
     # Save the first array to 'data1.csv'
-    np.savetxt(f'Raster_array_{detect_threshold}.csv', np.vstack(Raster_complete), delimiter=',')
+    np.savetxt(f'Raster_array_{detect_threshold}_{wellID}.csv', np.vstack(Raster_complete), delimiter=',')
     
     # Save the second array to 'data2.csv'
-    np.savetxt(f'Unit_Location{detect_threshold}.csv', np.vstack(Position_complete), delimiter=',')
-    
-
-
-
+    np.savetxt(f'Unit_Location{detect_threshold}_{wellID}.csv', np.vstack(Position_complete), delimiter=',')
 
 
 
