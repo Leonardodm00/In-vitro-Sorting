@@ -40,6 +40,14 @@ from mountainsort5.util import create_cached_recording
 '''
 Notes:
     1) For now LUSSAC method is not used
+    
+    
+Outline for a correct use:
+    - Change fileDirectory and fileName to correcly acces the data.
+    - Change basedir_out in the folfer where results will be saved
+    - Perform data extraction and batching, saving thebinary batches in basedir_out
+    - After batching load the data in the different 'recc1'. CHANGE the loading directory / path. 
+    - run the code
 
 
 
@@ -167,11 +175,11 @@ for wellID in wellID_array:
 
 
     # variables
-    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
-    fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
+    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01"   #put the path
+    fileName  = r'\1263_DIV56_lowDens_nbasal_001_01.brw' #filevname 
     
     # Create the base output directory with the wellID embedded
-    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\MS5\SORTER OUTPUT_lowDens400{wellID}'
     
     # Check if the directory exists and create it if it doesn't
     if not os.path.exists(basedir_out):
@@ -182,103 +190,103 @@ for wellID in wellID_array:
     
     
     
-    file_path_row= Path(str(fileDirectory + fileName))
+    # file_path_row= Path(str(fileDirectory + fileName))
     
-    useSyntheticNoise = True
+    # useSyntheticNoise = True
     
-    total_sec =600
-    Batch_size =100
+    # total_sec =600
+    # Batch_size =100
     
-    n_b = int(total_sec/Batch_size)
+    # n_b = int(total_sec/Batch_size)
     
-    for j in range(0,n_b) :
-        dataStartPositionSec = j*Batch_size
-        dataDurationSec = Batch_size
+    # for j in range(0,n_b) :
+    #     dataStartPositionSec = j*Batch_size
+    #     dataDurationSec = Batch_size
         
-        print('Start sec',dataStartPositionSec)
-        print('Finish sec',dataStartPositionSec + dataDurationSec)
-        
-        
-        
-        '''
-        First 2 channels are used for calibration... Disregard them
+    #     print('Start sec',dataStartPositionSec)
+    #     print('Finish sec',dataStartPositionSec + dataDurationSec)
         
         
         
-        '''
+    #     '''
+    #     First 2 channels are used for calibration... Disregard them
+        
+        
+        
+    #     '''
         
       
         
         
         
-        '''
-        Extraction
+    #     '''
+    #     Extraction
         
-        '''
+    #     '''
         
-        with h5py.File(file_path_row, 'r') as file:
+    #     with h5py.File(file_path_row, 'r') as file:
         
-            # collect experiment information
+    #         # collect experiment information
             
-            samplingRate = file.attrs['SamplingRate']
-            chIdxs = np.array(file[wellID + '/StoredChIdxs'])
+    #         samplingRate = file.attrs['SamplingRate']
+    #         chIdxs = np.array(file[wellID + '/StoredChIdxs'])
             
-            # convert the requested time interval from seconds to frames
-            startFrame = int(dataStartPositionSec * samplingRate)
-            numFrames = int(dataDurationSec * samplingRate)
-            
-            
-            # Variables for covertion from digital to analog
-            
-            minDigitalValue = file.attrs['MinDigitalValue']
-            maxDigitalValue = file.attrs['MaxDigitalValue'] 
-            minAnalogValue = file.attrs['MinAnalogValue'] 
-            maxAnalogValue = file.attrs['MaxAnalogValue'] 
-            
-            ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
-            OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
+    #         # convert the requested time interval from seconds to frames
+    #         startFrame = int(dataStartPositionSec * samplingRate)
+    #         numFrames = int(dataDurationSec * samplingRate)
             
             
+    #         # Variables for covertion from digital to analog
+            
+    #         minDigitalValue = file.attrs['MinDigitalValue']
+    #         maxDigitalValue = file.attrs['MaxDigitalValue'] 
+    #         minAnalogValue = file.attrs['MinAnalogValue'] 
+    #         maxAnalogValue = file.attrs['MaxAnalogValue'] 
+            
+    #         ConversionFactor =  (maxAnalogValue - minAnalogValue) / (maxDigitalValue - minDigitalValue) 
+    #         OffsetValue =    minAnalogValue - ConversionFactor * minDigitalValue 
             
             
-            # initialize an empty (fill with zeros) data collection
-            data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
-            # fill the data collection with Gaussian noise if requested
-            if useSyntheticNoise:
-                    GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
-            # fill the data collection with the decoded event based sparse raw data
-            DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
+            
+            
+    #         # initialize an empty (fill with zeros) data collection
+    #         data = {chIdx: np.zeros(numFrames, dtype=np.int16) for chIdx in chIdxs} 
+    #         # fill the data collection with Gaussian noise if requested
+    #         if useSyntheticNoise:
+    #                 GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames)
+    #         # fill the data collection with the decoded event based sparse raw data
+    #         DecodeEventBasedRawData(file, data, wellID, startFrame, numFrames)
         
         
-        data_matrix = np.array(list(data.values()), dtype=np.int16)
-        data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
-        # for s in range(data_matrix.shape[0]):
+    #     data_matrix = np.array(list(data.values()), dtype=np.int16)
+    #     data_matrix = np.array((data_matrix*ConversionFactor) + OffsetValue,dtype=np.float32)
+    #     # for s in range(data_matrix.shape[0]):
             
-        #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
+    #     #     data_matrix[s,:] = np.array((data_matrix[s,:]*ConversionFactor) + OffsetValue,dtype=np.float32)
         
-        '''
-        Construct the RASTER matrix used in Spike interface.
+    #     '''
+    #     Construct the RASTER matrix used in Spike interface.
         
-        '''
-        file_path= basedir_out + f'\Data{j}.bin'
-        recording = se.NumpyRecording(data_matrix.T, samplingRate)
-        si.write_binary_recording(recording, file_path, dtype=np.float32)
-        Number_electrodes =  recording.get_num_channels()
-        # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
-        # print(f"Traces dtype: {recording.get_dtype()}")
+    #     '''
+    #     file_path= basedir_out + f'\Data{j}.bin'
+    #     recording = se.NumpyRecording(data_matrix.T, samplingRate)
+    #     si.write_binary_recording(recording, file_path, dtype=np.float32)
+    #     Number_electrodes =  recording.get_num_channels()
+    #     # file_path_bin = file_path.parent.joinpath("Data_matrix.bin")
+    #     # print(f"Traces dtype: {recording.get_dtype()}")
         
-        # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
-        # # print(recording.get_num_frames(), recording.get_num_channels())
-        # print(recording.get_num_frames(), recording.get_num_channels())
+    #     # # Confirm that the data was loaded correctly by comparing the data shapes and see they match the MATLAB data
+    #     # # print(recording.get_num_frames(), recording.get_num_channels())
+    #     # print(recording.get_num_frames(), recording.get_num_channels())
         
-        # %matplotlib
-        # PLOT TRACES
-        # timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
-        # plt.title('Saved time series')
-        # plt.show()
+    #     # %matplotlib
+    #     # PLOT TRACES
+    #     # timeseries_plot = sw.plot_traces(recording,channel_ids = np.arange(3,10) ,time_range=(1,1.2),figsize=(8,10))
+    #     # plt.title('Saved time series')
+    #     # plt.show()
       
-        del data_matrix
-        del recording
+    #     del data_matrix
+    #     del recording
     
     
     
@@ -286,12 +294,12 @@ for wellID in wellID_array:
     
     # %reset -f
     
-    # variables
-    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
-    fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
+    # # variables
+    # fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
+    # fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
     
-    # Create the base output directory with the wellID embedded
-    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+    # # Create the base output directory with the wellID embedded
+    # basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
     
     # Check if the directory exists and create it if it doesn't
     if not os.path.exists(basedir_out):
@@ -403,23 +411,24 @@ for wellID in wellID_array:
         print('Channel used:')
         print(set_ch)
         # # ------------------------ RECONSTRUCTING THE WHOLE SIGNAL ------------------------
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data0.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data0.bin"
         recc1 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
         
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data1.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data1.bin"
         recc2 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data2.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data2.bin"
         recc3 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data3.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data3.bin"
         recc4 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data4.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data4.bin"
         recc5 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data5.bin"
+        
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data5.bin"
         recc6 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
         
