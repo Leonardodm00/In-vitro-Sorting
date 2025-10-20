@@ -158,26 +158,26 @@ def GenerateSyntheticNoise(file, data, wellID, startFrame, numFrames):
 # %reset -f
 # ------------------------ SAVING RECORDING IN BATCHES ------------------------
 
-wellID_array = ['Well_A1','Well_A2','Well_A3'] #change well 
+wellID_array = ['Well_A1'] #change well 
 # 'Well_A1','Well_A2','Well_A3','Well_B1','Well_B2','Well_B3'
 
 
 for wellID in wellID_array:
 
 
-    # # variables
-    # fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
-    # fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
+    # variables
+    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01"   #put the path
+    fileName  = r'\1263_DIV56_lowDens_nbasal_001_01.brw' #filevname 
     
-    # # Create the base output directory with the wellID embedded
-    # basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+    # Create the base output directory with the wellID embedded
+    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}'
     
-    # # Check if the directory exists and create it if it doesn't
-    # if not os.path.exists(basedir_out):
-    #     os.makedirs(basedir_out)
-    #     print(f"Created directory: {basedir_out}")
-    # else:
-    #     print(f"Directory already exists: {basedir_out}")
+    # Check if the directory exists and create it if it doesn't
+    if not os.path.exists(basedir_out):
+        os.makedirs(basedir_out)
+        print(f"Created directory: {basedir_out}")
+    else:
+        print(f"Directory already exists: {basedir_out}")
     
     
     
@@ -285,12 +285,7 @@ for wellID in wellID_array:
     
     # %reset -f
     
-    # variables
-    fileDirectory = r"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00"   #put the path
-    fileName  = r'\1263_DIV56_lowDens400_nbasal_secondaRecSenza bande_007_00.brw' #filevname 
-    
-    # Create the base output directory with the wellID embedded
-    basedir_out = fr'C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}'
+  
     
     # Check if the directory exists and create it if it doesn't
     if not os.path.exists(basedir_out):
@@ -913,7 +908,7 @@ for wellID in wellID_array:
                     # """
          
         
-            'template_sizes': 5, #
+            'template_sizes': 5, #5
             
                     # """
                     # Number of sizes for universal spike templates (multiples of the
@@ -1074,7 +1069,7 @@ for wellID in wellID_array:
                 data_dtype= 'float32',
                 bad_channels=bad_ch,
                 
-                device  = torch.device('cuda'),
+                device  = torch.device('cpu'),
                 save_preprocessed_copy=False
                 )
         #%
@@ -1245,9 +1240,6 @@ for wellID in wellID_array:
     
     # # Save the second array to 'data2.csv'
     # np.savetxt(f'Unit_Location_KS_th{Th_learned}_{Th_universal}_{Th_single_ch}.csv', np.vstack(Position_complete), delimiter=',')
-
-
-
 
 
 
