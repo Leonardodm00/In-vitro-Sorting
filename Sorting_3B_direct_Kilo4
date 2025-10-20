@@ -41,7 +41,12 @@ Notes:
     2) Th learned=6 and Th universal=6 after many simulations (simple grid search) seems the best choice
 
 
-
+Outline for a correct use:
+    - Change fileDirectory and fileName to correcly acces the data.
+    - Change basedir_out in the folfer where results will be saved
+    - Perform data extraction and batching, saving thebinary batches in basedir_out
+    - After batching load the data in the different 'recc1'. CHANGE the loading directory / path. 
+    - run the code
 '''
 #%
 
@@ -411,24 +416,24 @@ for wellID in wellID_array:
         print('Channel used:')
         print(set_ch)
         # # ------------------------ RECONSTRUCTING THE WHOLE SIGNAL ------------------------
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data0.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data0.bin"
         recc1 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
         
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data1.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data1.bin"
         recc2 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data2.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data2.bin"
         recc3 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data3.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data3.bin"
         recc4 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data4.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data4.bin"
         recc5 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
         
-        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400{wellID}\Data5.bin"
+        file_path_bin = fr"C:\Users\l.collo\Desktop\Leo\DATA LOW\1263_DIV56_lowDens_nbasal_001_01\SORTER OUTPUT_lowDens400{wellID}\Data5.bin"
         recc6 = se.BinaryRecordingExtractor(file_paths=file_path_bin, sampling_frequency=samplingRate,dtype=np.float32,
                                            num_channels=Number_electrodes)
         
@@ -1059,7 +1064,9 @@ for wellID in wellID_array:
         
         '''
         
-
+        device =  torch.device('cuda')
+        print('Device used:')
+        print(device)
         ops, st, clu, tF, Wall, similar_templates, is_ref, \
             est_contam_rate, kept_spikes = run_kilosort(
                 settings=MAIN_SETTINGS,
@@ -1069,7 +1076,7 @@ for wellID in wellID_array:
                 data_dtype= 'float32',
                 bad_channels=bad_ch,
                 
-                device  = torch.device('cpu'),
+                device  = device,
                 save_preprocessed_copy=False
                 )
         #%
@@ -1240,11 +1247,6 @@ for wellID in wellID_array:
     
     # # Save the second array to 'data2.csv'
     # np.savetxt(f'Unit_Location_KS_th{Th_learned}_{Th_universal}_{Th_single_ch}.csv', np.vstack(Position_complete), delimiter=',')
-
-
-
-
-
 
 
 
