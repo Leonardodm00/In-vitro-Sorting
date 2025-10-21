@@ -347,8 +347,8 @@ for wellID in wellID_array:
     k = 0
     n = int(math.sqrt(Number_electrodes))
     positions = np.zeros((Number_electrodes, 2))
-    for i in range(n):
-        for j in range(n):
+    for j in range(n):
+        for i in range(n):
             x = i * pitch
             y = j * pitch
             positions[k] = x, y
@@ -1001,5 +1001,4 @@ for wellID in wellID_array:
     
     # Save the second array to 'data2.csv'
     np.savetxt(f'Unit_Location{detect_threshold}_{wellID}.csv', np.vstack(Position_complete), delimiter=',')
-
 
