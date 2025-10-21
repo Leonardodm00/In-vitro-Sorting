@@ -1,12 +1,13 @@
+
 import numpy as np
 from pathlib import Path
 import shutil
-
+import matplotlib.pyplot as plt
 import numpy as np
 
 from kilosort.run_kilosort import load_sorting
         
-def plot_probe_and_units(pos):
+def plot_probe_and_units(pos,Visible=True):
     import numpy as np
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
@@ -27,46 +28,52 @@ def plot_probe_and_units(pos):
     k = 0
     n = int(math.sqrt(Number_electrodes))
     electrode_positions = np.zeros((Number_electrodes, 2))
-    for i in range(n):
-        for j in range(n):
+    for j in range(n):
+        for i in range(n):
             x = i * pitch
             y = j * pitch
             electrode_positions[k] = x, y
             k = k + 1
+            
+            
+            
+    print(np.max(electrode_positions))
+    if Visible == True:
+        # --- Step 3: Set Up the Plot ---
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.set_aspect('equal', adjustable='box')
+    
+        # --- Step 4: Plot the Electrodes ---
+        for x_pos, y_pos in electrode_positions:
+            # Calculate the bottom-left corner of the square to center it on the position
+            rect = patches.Rectangle(
+                (x_pos - Electrode_size / 2, y_pos - Electrode_size / 2),
+                Electrode_size, Electrode_size,
+                linewidth=1,
+                edgecolor='gray',
+                facecolor='lightgray',
+                zorder=1
+            )
+            ax.add_patch(rect)
+    
+        # --- Step 5: Plot the Unit Positions ---
+        # Use a colormap to plot each unit with a different color
+        sc = ax.scatter(pos[:, 0], pos[:, 1], c=np.random.rand(len(pos)), cmap='viridis', s=50, zorder=2)
+    
+    
+        # --- Step 6: Finalize the Plot ---
+        ax.set_xlabel('X Position ($\mu$m)')
+        ax.set_ylabel('Y Position ($\mu$m)')
+        ax.set_title(f'Probe Layout and Unit Positions ({Number_electrodes} Electrodes)')
+    
+        # Set limits to fit the data
+        ax.set_xlim(-Electrode_size / 2, n * pitch + Electrode_size / 2)
+        ax.set_ylim(-Electrode_size / 2, n * pitch + Electrode_size / 2)
+    
+        plt.grid(True)
+        plt.show()  
+        
 
-    # --- Step 3: Set Up the Plot ---
-    fig, ax = plt.subplots(figsize=(10, 10))
-    ax.set_aspect('equal', adjustable='box')
-
-    # --- Step 4: Plot the Electrodes ---
-    for x_pos, y_pos in electrode_positions:
-        # Calculate the bottom-left corner of the square to center it on the position
-        rect = patches.Rectangle(
-            (x_pos - Electrode_size / 2, y_pos - Electrode_size / 2),
-            Electrode_size, Electrode_size,
-            linewidth=1,
-            edgecolor='gray',
-            facecolor='lightgray',
-            zorder=1
-        )
-        ax.add_patch(rect)
-
-    # --- Step 5: Plot the Unit Positions ---
-    # Use a colormap to plot each unit with a different color
-    sc = ax.scatter(pos[:, 0], pos[:, 1], c=np.random.rand(len(pos)), cmap='viridis', s=50, zorder=2)
-
-
-    # --- Step 6: Finalize the Plot ---
-    ax.set_xlabel('X Position ($\mu$m)')
-    ax.set_ylabel('Y Position ($\mu$m)')
-    ax.set_title(f'Probe Layout and Unit Positions ({Number_electrodes} Electrodes)')
-
-    # Set limits to fit the data
-    ax.set_xlim(-Electrode_size / 2, n * pitch + Electrode_size / 2)
-    ax.set_ylim(-Electrode_size / 2, n * pitch + Electrode_size / 2)
-
-    plt.grid(True)
-    plt.show()  
     
 def curation_extraction(kilo_folders,use_kilo_labels =True,Visible = True):
     from pathlib import Path
@@ -262,15 +269,37 @@ def plot_raster(spikes: np.ndarray, neuron_labels: list = None, title: str = "Ra
 # --- Example Usage ---
 
 
-kilo_folders = [r"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_0",
-                r"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_1",
-                r"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_2",
-                r"C:\Users\l.collo\Desktop\Leo\DATA LOW\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_3"
+kilo_folders = [r"C:\Users\Admin\Desktop\Leonardo\LOW DATA\400\A1\WithBands\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_0",
+                r"C:\Users\Admin\Desktop\Leonardo\LOW DATA\400\A1\WithBands\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_1",
+                r"C:\Users\Admin\Desktop\Leonardo\LOW DATA\400\A1\WithBands\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_2",
+                r"C:\Users\Admin\Desktop\Leonardo\LOW DATA\400\A1\WithBands\SORTER OUTPUT_lowDens400Well_A1\Kilo_out_3"
 ]       
         
+import os
+# %matplotlib
+new_directory = r'C:\Users\Admin\Desktop\Leonardo\LOW DATA\400\A1'
 
+
+pos,spk =  curation_extraction(kilo_folders,use_kilo_labels = True)     
+  
 %matplotlib
-pos,spk =  curation_extraction(kilo_folders,use_kilo_labels = False)     
-        
+      
 plot_raster(spk)
-        
+os.chdir(new_directory)
+# 3. Save to CSV using numpy.savetxt
+
+# Save the 'pos' array
+np.savetxt(
+    'pos_data.csv',        # The filename
+    pos,                   # The array to save
+    delimiter=',',         # Use a comma as the separator (CSV standard)
+            # Format floating-point numbers to 5 decimal places
+)
+
+# Save the 'spk' array
+np.savetxt(
+    'spk_data.csv',        # The filename
+    spk,                   # The array to save
+    delimiter=',',
+   
+)
